@@ -1,0 +1,183 @@
+{
+  "schema_version": 2,
+  "source": "Stridulate V50 locked holdout per-species metrics",
+  "tier_rules": {
+    "VERIFIED": "Explicitly marked VERIFIED by the V50 locked-holdout release evaluation.",
+    "GOOD": "Not V50-verified, but locked-holdout F1 is at least 0.80 with at least 8 recordings.",
+    "EXPERIMENTAL": "Limited evaluation support, fewer recordings, or locked-holdout F1 below the Good threshold.",
+    "UNKNOWN_GATE": "The model output used to reject unsupported or uncertain recordings."
+  },
+  "verified_labels": [
+    "Neotibicen_pruinosus",
+    "Neotibicen_robinsonianus",
+    "Neotibicen_tibicen",
+    "Pterophylla_camellifolia"
+  ],
+  "good_labels": [
+    "Gryllus_pennsylvanicus",
+    "Neocicada_hieroglyphica",
+    "Neoconocephalus_ensiger",
+    "Neocurtilla_hexadactyla",
+    "Neotibicen_linnei",
+    "Neotibicen_superbus"
+  ],
+  "status_by_label": {
+    "Acheta_domesticus": "EXPERIMENTAL",
+    "Allonemobius_fasciatus": "EXPERIMENTAL",
+    "Amblycorypha_oblongifolia": "EXPERIMENTAL",
+    "Gryllus_pennsylvanicus": "GOOD",
+    "Microcentrum_rhombifolium": "EXPERIMENTAL",
+    "Neocicada_hieroglyphica": "GOOD",
+    "Neoconocephalus_ensiger": "GOOD",
+    "Neoconocephalus_nebrascensis": "EXPERIMENTAL",
+    "Neocurtilla_hexadactyla": "GOOD",
+    "Neotibicen_canicularis": "EXPERIMENTAL",
+    "Neotibicen_linnei": "GOOD",
+    "Neotibicen_lyricen": "EXPERIMENTAL",
+    "Neotibicen_pruinosus": "VERIFIED",
+    "Neotibicen_robinsonianus": "VERIFIED",
+    "Neotibicen_superbus": "GOOD",
+    "Neotibicen_tibicen": "VERIFIED",
+    "Oecanthus_californicus": "EXPERIMENTAL",
+    "Oecanthus_fultoni": "EXPERIMENTAL",
+    "Platypedia_minor": "EXPERIMENTAL",
+    "Pterophylla_camellifolia": "VERIFIED",
+    "Velarifictorus_micado": "EXPERIMENTAL",
+    "Unknown_or_unsupported": "UNKNOWN_GATE"
+  },
+  "locked_holdout_metrics": {
+    "Acheta_domesticus": {
+      "precision": 0.7,
+      "recall": 0.777778,
+      "f1": 0.736842,
+      "locked_recordings": 9
+    },
+    "Allonemobius_fasciatus": {
+      "precision": 1.0,
+      "recall": 0.6,
+      "f1": 0.75,
+      "locked_recordings": 5
+    },
+    "Amblycorypha_oblongifolia": {
+      "precision": 0.666667,
+      "recall": 1.0,
+      "f1": 0.8,
+      "locked_recordings": 4
+    },
+    "Gryllus_pennsylvanicus": {
+      "precision": 0.833333,
+      "recall": 0.9375,
+      "f1": 0.882353,
+      "locked_recordings": 16
+    },
+    "Microcentrum_rhombifolium": {
+      "precision": 0.631579,
+      "recall": 0.8,
+      "f1": 0.705882,
+      "locked_recordings": 15
+    },
+    "Neocicada_hieroglyphica": {
+      "precision": 0.722222,
+      "recall": 0.928571,
+      "f1": 0.8125,
+      "locked_recordings": 14
+    },
+    "Neoconocephalus_ensiger": {
+      "precision": 0.769231,
+      "recall": 1.0,
+      "f1": 0.869565,
+      "locked_recordings": 10
+    },
+    "Neoconocephalus_nebrascensis": {
+      "precision": 0.7,
+      "recall": 0.875,
+      "f1": 0.777778,
+      "locked_recordings": 8
+    },
+    "Neocurtilla_hexadactyla": {
+      "precision": 0.75,
+      "recall": 1.0,
+      "f1": 0.857143,
+      "locked_recordings": 9
+    },
+    "Neotibicen_canicularis": {
+      "precision": 0.866667,
+      "recall": 0.65,
+      "f1": 0.742857,
+      "locked_recordings": 20
+    },
+    "Neotibicen_linnei": {
+      "precision": 0.733333,
+      "recall": 1.0,
+      "f1": 0.846154,
+      "locked_recordings": 11
+    },
+    "Neotibicen_lyricen": {
+      "precision": 0.647059,
+      "recall": 0.6875,
+      "f1": 0.666667,
+      "locked_recordings": 16
+    },
+    "Neotibicen_pruinosus": {
+      "precision": 0.862069,
+      "recall": 0.862069,
+      "f1": 0.862069,
+      "locked_recordings": 29
+    },
+    "Neotibicen_robinsonianus": {
+      "precision": 0.962963,
+      "recall": 1.0,
+      "f1": 0.981132,
+      "locked_recordings": 26
+    },
+    "Neotibicen_superbus": {
+      "precision": 0.764706,
+      "recall": 0.928571,
+      "f1": 0.83871,
+      "locked_recordings": 14
+    },
+    "Neotibicen_tibicen": {
+      "precision": 0.88,
+      "recall": 0.846154,
+      "f1": 0.862745,
+      "locked_recordings": 26
+    },
+    "Oecanthus_californicus": {
+      "precision": 0.5,
+      "recall": 1.0,
+      "f1": 0.666667,
+      "locked_recordings": 2
+    },
+    "Oecanthus_fultoni": {
+      "precision": 0.5625,
+      "recall": 0.9,
+      "f1": 0.692308,
+      "locked_recordings": 10
+    },
+    "Platypedia_minor": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "locked_recordings": 5
+    },
+    "Pterophylla_camellifolia": {
+      "precision": 0.925,
+      "recall": 0.91358,
+      "f1": 0.919255,
+      "locked_recordings": 81
+    },
+    "Velarifictorus_micado": {
+      "precision": 0.875,
+      "recall": 1.0,
+      "f1": 0.933333,
+      "locked_recordings": 7
+    },
+    "Unknown_or_unsupported": {
+      "precision": 0.971098,
+      "recall": 0.930748,
+      "f1": 0.950495,
+      "locked_recordings": 722
+    }
+  },
+  "disclaimer": "Reliability tiers describe this model evaluation only. They do not establish scientific certainty or confirm a field identification."
+}

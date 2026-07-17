@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Observation context can contain approximate coordinates and is intentionally local-only. -->
+    <exclude domain="sharedpref" path="observation_context_v2.xml" />
+    <!-- Saved community WAV files and linked observation metadata remain local-only. -->
+    <exclude domain="file" path="community_observations/" />
+</full-backup-content>

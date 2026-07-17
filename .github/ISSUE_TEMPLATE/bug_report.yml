@@ -1,0 +1,52 @@
+name: Bug report
+description: Report a reproducible Android, recording, classification, or UI problem
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for helping improve Stridulate. Do not include precise private coordinates or copyrighted audio you cannot redistribute.
+  - type: input
+    id: device
+    attributes:
+      label: Device and Android version
+      placeholder: Example: Pixel 8, Android 15
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Stridulate version or commit
+      placeholder: Example: 2.1 or commit hash
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Include the screen, result state, and visible error.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. Open...\n2. Record...\n3. Tap..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Recording and context details
+      description: Optional. Note noise, chorus versus single caller, approximate region, season, and whether location context was enabled.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Remove personal data, exact location, tokens, and secrets.

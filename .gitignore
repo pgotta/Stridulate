@@ -1,0 +1,48 @@
+# Android Studio / IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# Gradle
+.gradle/
+build/
+**/build/
+
+# Local Android SDK paths
+local.properties
+
+# Kotlin / Java
+*.class
+
+# Native build output
+.externalNativeBuild/
+.cxx/
+
+# Signing and secrets
+*.jks
+*.keystore
+keystore.properties
+secrets.properties
+
+# Generated packages and captures
+*.apk
+*.aab
+*.apks
+captures/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+
+# Python verification caches
+__pycache__/
+*.py[cod]
+
+# Temporary files
+*.tmp
+*.log

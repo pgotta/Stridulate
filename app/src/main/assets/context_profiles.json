@@ -1,0 +1,153 @@
+{
+  "schema_version": 1,
+  "source": "Stridulate V50 tier1_selection.csv coverage reasons plus the bundled species month/nocturnal fields.",
+  "behavior": {
+    "region": "Soft ranking support only; never excludes a species.",
+    "season": "Uses bundled active-month data with small boosts or penalties.",
+    "local_time": "Uses bundled nocturnal/daytime behavior with a small adjustment.",
+    "temperature": "Live temperature is collected and displayed. A score adjustment is applied only when a species profile contains a sourced temperature range.",
+    "maximum_total_multiplier": 1.15,
+    "minimum_total_multiplier": 0.85
+  },
+  "profiles": {
+    "Acheta_domesticus": {
+      "regions": [
+        "NATIONWIDE"
+      ],
+      "coverage_note": "Nationwide around buildings; introduced"
+    },
+    "Allonemobius_fasciatus": {
+      "regions": [
+        "EAST",
+        "CENTRAL"
+      ],
+      "coverage_note": "Broad eastern and central U.S."
+    },
+    "Amblycorypha_oblongifolia": {
+      "regions": [
+        "EAST"
+      ],
+      "coverage_note": "Broad eastern U.S."
+    },
+    "Gryllus_pennsylvanicus": {
+      "regions": [
+        "EAST",
+        "CENTRAL"
+      ],
+      "coverage_note": "Broad eastern and central U.S."
+    },
+    "Microcentrum_rhombifolium": {
+      "regions": [
+        "EAST",
+        "CENTRAL"
+      ],
+      "coverage_note": "Broad eastern and central U.S."
+    },
+    "Neocicada_hieroglyphica": {
+      "regions": [
+        "EAST",
+        "SOUTHEAST"
+      ],
+      "coverage_note": "Eastern and southeastern U.S."
+    },
+    "Neoconocephalus_ensiger": {
+      "regions": [
+        "EAST",
+        "CENTRAL"
+      ],
+      "coverage_note": "Broad eastern and central U.S."
+    },
+    "Neoconocephalus_nebrascensis": {
+      "regions": [
+        "GREAT_PLAINS",
+        "CENTRAL"
+      ],
+      "coverage_note": "Great Plains and central U.S."
+    },
+    "Neocurtilla_hexadactyla": {
+      "regions": [
+        "EAST"
+      ],
+      "coverage_note": "Broad eastern U.S."
+    },
+    "Neotibicen_canicularis": {
+      "regions": [
+        "NORTH",
+        "EAST"
+      ],
+      "coverage_note": "Northern and eastern U.S."
+    },
+    "Neotibicen_linnei": {
+      "regions": [
+        "EAST",
+        "CENTRAL"
+      ],
+      "coverage_note": "Eastern and central U.S."
+    },
+    "Neotibicen_lyricen": {
+      "regions": [
+        "EAST"
+      ],
+      "coverage_note": "Eastern U.S."
+    },
+    "Neotibicen_pruinosus": {
+      "regions": [
+        "EAST",
+        "CENTRAL"
+      ],
+      "coverage_note": "Eastern and central U.S."
+    },
+    "Neotibicen_robinsonianus": {
+      "regions": [
+        "EAST"
+      ],
+      "coverage_note": "Eastern U.S.; strongest internal evidence"
+    },
+    "Neotibicen_superbus": {
+      "regions": [
+        "CENTRAL",
+        "SOUTH_CENTRAL"
+      ],
+      "coverage_note": "Central and south-central U.S."
+    },
+    "Neotibicen_tibicen": {
+      "regions": [
+        "EAST",
+        "CENTRAL"
+      ],
+      "coverage_note": "Widespread eastern and central U.S."
+    },
+    "Oecanthus_californicus": {
+      "regions": [
+        "WEST"
+      ],
+      "coverage_note": "Western U.S. regional coverage"
+    },
+    "Oecanthus_fultoni": {
+      "regions": [
+        "NATIONWIDE"
+      ],
+      "coverage_note": "Very broad U.S. distribution"
+    },
+    "Platypedia_minor": {
+      "regions": [
+        "WEST"
+      ],
+      "coverage_note": "Western U.S. regional coverage"
+    },
+    "Pterophylla_camellifolia": {
+      "regions": [
+        "EAST",
+        "NORTHEAST",
+        "SOUTHEAST"
+      ],
+      "coverage_note": "Maine to Florida and much of eastern U.S."
+    },
+    "Velarifictorus_micado": {
+      "regions": [
+        "EAST"
+      ],
+      "coverage_note": "Introduced and widespread in parts of eastern U.S."
+    }
+  }
+}

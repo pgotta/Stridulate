@@ -1,0 +1,39 @@
+Stridulate Tier 1 Android v2.2.1 final verification
+Generated: 2026-07-17 20:00:43 UTC
+
+PATCH FIX
+- Species reference audio stops when the guide screen is disposed: PASS
+- Species reference audio stops on Android system back: PASS
+- Species reference audio stops from the in-app guide back control: PASS
+- Species reference audio stops when the app leaves the foreground: PASS
+- Pending online reference-audio lookup is cancelled on navigation: PASS
+
+MODEL ASSETS
+- model SHA-256: a08e6b367882c20517f956f23eaf3f3456a730df749090331700337937661b43
+- labels SHA-256: aa8d46c67b74aeb3111a4452da2a56e2179632cabc5c545509c8d2e09e0b242f
+- metadata SHA-256: 1ffd723088268838b93fdfe2d856cf1003ac490fcac3da69d6f1d0aba309c5ef
+- normalization SHA-256: b2f5af67b27b57a18042df8865b30c80dd0ae3aaa126195a30802cca4aba4b4e
+- TFLite input: FLOAT32 [1,128,431,1]
+- TFLite output: FLOAT32 [1,22]
+
+OFFLINE PROJECT VERIFIER
+PASS: exact Tier 1 v5 assets and checksums
+PASS: labels=22; supported_species=21; verified=4; good=6; experimental=11
+PASS: dynamic output count, calibrated rejection, reliability tiers, Top 3 UI
+PASS: versionName 2.2.1; versionCode 9
+PASS: weather freshness, recording-quality, and community-identification features retained
+PASS: reference playback lifecycle safeguards
+PASS: Gradle wrapper JAR structure
+
+TARGETED CHECKS
+- all JSON files parsed: PASS
+- all Android XML files parsed: PASS
+- Python community sync bytecode compilation: PASS
+- Kotlin parser/signature smoke scan: PASS
+- Gradle launcher shell syntax: PASS
+
+GRADLE BUILD ATTEMPT
+- ./gradlew --no-daemon assembleDebug was attempted.
+- Full APK assembly could not run in this container because services.gradle.org
+  could not be resolved and no Android SDK was installed.
+- .github/workflows/android-build.yml runs the verifier and assembleDebug on GitHub.

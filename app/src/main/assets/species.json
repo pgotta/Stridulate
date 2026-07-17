@@ -1,0 +1,3107 @@
+{
+  "species": [
+    {
+      "id": "acheta-domesticus",
+      "common": "House Cricket",
+      "latin": "Acheta domesticus",
+      "authority": "",
+      "family": "Cricket",
+      "familyLatin": "Gryllidae",
+      "group": "cricket",
+      "sizeMm": [
+        10,
+        20
+      ],
+      "freqKHz": 3.8,
+      "freqRange": [
+        3.0,
+        5.0
+      ],
+      "pulseRate": null,
+      "callType": "Trill/chirp",
+      "tempSensitive": true,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Grass & shrubs",
+      "range": "North America",
+      "blurb": "House Cricket (Acheta domesticus) is a North American cricket included in Stridulate's trained model.",
+      "songDesc": "A trilling or chirping song typical of crickets.",
+      "signature": {
+        "freqKHz": 3.8,
+        "pulseRate": null,
+        "broadband": false,
+        "pulseRegularity": 0.55,
+        "bandwidthKHz": 2.0
+      }
+    },
+    {
+      "id": "allonemobius-allardi",
+      "common": "Allard's Ground Cricket",
+      "latin": "Allonemobius allardi",
+      "authority": "",
+      "family": "Cricket",
+      "familyLatin": "Gryllidae",
+      "group": "cricket",
+      "sizeMm": [
+        10,
+        20
+      ],
+      "freqKHz": 3.8,
+      "freqRange": [
+        3.0,
+        5.0
+      ],
+      "pulseRate": null,
+      "callType": "Trill/chirp",
+      "tempSensitive": true,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Grass & shrubs",
+      "range": "North America",
+      "blurb": "Allard's Ground Cricket (Allonemobius allardi) is a North American cricket included in Stridulate's trained model.",
+      "songDesc": "A trilling or chirping song typical of crickets.",
+      "signature": {
+        "freqKHz": 3.8,
+        "pulseRate": null,
+        "broadband": false,
+        "pulseRegularity": 0.55,
+        "bandwidthKHz": 2.0
+      }
+    },
+    {
+      "id": "allonemobius-fasciatus",
+      "common": "Striped Ground Cricket",
+      "latin": "Allonemobius fasciatus",
+      "authority": "",
+      "family": "Cricket",
+      "familyLatin": "Gryllidae",
+      "group": "cricket",
+      "sizeMm": [
+        10,
+        20
+      ],
+      "freqKHz": 3.8,
+      "freqRange": [
+        3.0,
+        5.0
+      ],
+      "pulseRate": null,
+      "callType": "Trill/chirp",
+      "tempSensitive": true,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Grass & shrubs",
+      "range": "North America",
+      "blurb": "Striped Ground Cricket (Allonemobius fasciatus) is a North American cricket included in Stridulate's trained model.",
+      "songDesc": "A trilling or chirping song typical of crickets.",
+      "signature": {
+        "freqKHz": 3.8,
+        "pulseRate": null,
+        "broadband": false,
+        "pulseRegularity": 0.55,
+        "bandwidthKHz": 2.0
+      }
+    },
+    {
+      "id": "amblycorypha-oblongifolia",
+      "common": "Oblong-winged Katydid",
+      "latin": "Amblycorypha oblongifolia",
+      "authority": "",
+      "family": "Katydid",
+      "familyLatin": "Tettigoniidae",
+      "group": "katydid",
+      "sizeMm": [
+        20,
+        60
+      ],
+      "freqKHz": 8.0,
+      "freqRange": [
+        5.0,
+        15.0
+      ],
+      "pulseRate": null,
+      "callType": "Raspy song",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Trees & shrubs",
+      "range": "North America",
+      "blurb": "Oblong-winged Katydid (Amblycorypha oblongifolia) is a North American katydid included in Stridulate's trained model.",
+      "songDesc": "A raspy, repetitive song produced by wing stridulation.",
+      "signature": {
+        "freqKHz": 8.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 10.0
+      }
+    },
+    {
+      "id": "cacama-valvata",
+      "common": "Cactus Dodger Cicada",
+      "latin": "Cacama valvata",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "Western North America",
+      "blurb": "Cactus Dodger Cicada (Cacama valvata) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "conocephalus-brevipennis",
+      "common": "Short-winged Meadow Katydid",
+      "latin": "Conocephalus brevipennis",
+      "authority": "",
+      "family": "Katydid",
+      "familyLatin": "Tettigoniidae",
+      "group": "katydid",
+      "sizeMm": [
+        20,
+        60
+      ],
+      "freqKHz": 8.0,
+      "freqRange": [
+        5.0,
+        15.0
+      ],
+      "pulseRate": null,
+      "callType": "Raspy song",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Trees & shrubs",
+      "range": "North America",
+      "blurb": "Short-winged Meadow Katydid (Conocephalus brevipennis) is a North American katydid included in Stridulate's trained model.",
+      "songDesc": "A raspy, repetitive song produced by wing stridulation.",
+      "signature": {
+        "freqKHz": 8.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 10.0
+      }
+    },
+    {
+      "id": "cyrtoxipha-columbiana",
+      "common": "Columbian Trig",
+      "latin": "Cyrtoxipha columbiana",
+      "authority": "",
+      "family": "Cricket",
+      "familyLatin": "Gryllidae",
+      "group": "cricket",
+      "sizeMm": [
+        10,
+        20
+      ],
+      "freqKHz": 3.8,
+      "freqRange": [
+        3.0,
+        5.0
+      ],
+      "pulseRate": null,
+      "callType": "Trill/chirp",
+      "tempSensitive": true,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Grass & shrubs",
+      "range": "North America",
+      "blurb": "Columbian Trig (Cyrtoxipha columbiana) is a North American cricket included in Stridulate's trained model.",
+      "songDesc": "A trilling or chirping song typical of crickets.",
+      "signature": {
+        "freqKHz": 3.8,
+        "pulseRate": null,
+        "broadband": false,
+        "pulseRegularity": 0.55,
+        "bandwidthKHz": 2.0
+      }
+    },
+    {
+      "id": "diceroprocta-eugraphica",
+      "common": "Eugraphic Cicada",
+      "latin": "Diceroprocta eugraphica",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "North America",
+      "blurb": "Eugraphic Cicada (Diceroprocta eugraphica) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "diceroprocta-grossa",
+      "common": "Grand Western Cicada",
+      "latin": "Diceroprocta grossa",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "North America",
+      "blurb": "Grand Western Cicada (Diceroprocta grossa) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "diceroprocta-viridifascia",
+      "common": "Green-winged Cicada",
+      "latin": "Diceroprocta viridifascia",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "North America",
+      "blurb": "Green-winged Cicada (Diceroprocta viridifascia) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "diceroprocta-vitripennis",
+      "common": "Green Winged Cicada",
+      "latin": "Diceroprocta vitripennis",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "North America",
+      "blurb": "Green Winged Cicada (Diceroprocta vitripennis) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "eunemobius-carolinus",
+      "common": "Carolina Ground Cricket",
+      "latin": "Eunemobius carolinus",
+      "authority": "",
+      "family": "Cricket",
+      "familyLatin": "Gryllidae",
+      "group": "cricket",
+      "sizeMm": [
+        10,
+        20
+      ],
+      "freqKHz": 3.8,
+      "freqRange": [
+        3.0,
+        5.0
+      ],
+      "pulseRate": null,
+      "callType": "Trill/chirp",
+      "tempSensitive": true,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Grass & shrubs",
+      "range": "North America",
+      "blurb": "Carolina Ground Cricket (Eunemobius carolinus) is a North American cricket included in Stridulate's trained model.",
+      "songDesc": "A trilling or chirping song typical of crickets.",
+      "signature": {
+        "freqKHz": 3.8,
+        "pulseRate": null,
+        "broadband": false,
+        "pulseRegularity": 0.55,
+        "bandwidthKHz": 2.0
+      }
+    },
+    {
+      "id": "gryllus-assimilis",
+      "common": "Jamaican Field Cricket",
+      "latin": "Gryllus assimilis",
+      "authority": "",
+      "family": "Cricket",
+      "familyLatin": "Gryllidae",
+      "group": "cricket",
+      "sizeMm": [
+        10,
+        20
+      ],
+      "freqKHz": 3.8,
+      "freqRange": [
+        3.0,
+        5.0
+      ],
+      "pulseRate": null,
+      "callType": "Trill/chirp",
+      "tempSensitive": true,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Grass & shrubs",
+      "range": "North America",
+      "blurb": "Jamaican Field Cricket (Gryllus assimilis) is a North American cricket included in Stridulate's trained model.",
+      "songDesc": "A trilling or chirping song typical of crickets.",
+      "signature": {
+        "freqKHz": 3.8,
+        "pulseRate": null,
+        "broadband": false,
+        "pulseRegularity": 0.55,
+        "bandwidthKHz": 2.0
+      }
+    },
+    {
+      "id": "gryllus-pennsylvanicus",
+      "common": "Fall Field Cricket",
+      "latin": "Gryllus pennsylvanicus",
+      "authority": "",
+      "family": "Cricket",
+      "familyLatin": "Gryllidae",
+      "group": "cricket",
+      "sizeMm": [
+        10,
+        20
+      ],
+      "freqKHz": 3.8,
+      "freqRange": [
+        3.0,
+        5.0
+      ],
+      "pulseRate": null,
+      "callType": "Trill/chirp",
+      "tempSensitive": true,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Grass & shrubs",
+      "range": "North America",
+      "blurb": "Fall Field Cricket (Gryllus pennsylvanicus) is a North American cricket included in Stridulate's trained model.",
+      "songDesc": "A trilling or chirping song typical of crickets.",
+      "signature": {
+        "freqKHz": 3.8,
+        "pulseRate": null,
+        "broadband": false,
+        "pulseRegularity": 0.55,
+        "bandwidthKHz": 2.0
+      }
+    },
+    {
+      "id": "gryllus-veletis",
+      "common": "Spring Field Cricket",
+      "latin": "Gryllus veletis",
+      "authority": "",
+      "family": "Cricket",
+      "familyLatin": "Gryllidae",
+      "group": "cricket",
+      "sizeMm": [
+        10,
+        20
+      ],
+      "freqKHz": 3.8,
+      "freqRange": [
+        3.0,
+        5.0
+      ],
+      "pulseRate": null,
+      "callType": "Trill/chirp",
+      "tempSensitive": true,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Grass & shrubs",
+      "range": "North America",
+      "blurb": "Spring Field Cricket (Gryllus veletis) is a North American cricket included in Stridulate's trained model.",
+      "songDesc": "A trilling or chirping song typical of crickets.",
+      "signature": {
+        "freqKHz": 3.8,
+        "pulseRate": null,
+        "broadband": false,
+        "pulseRegularity": 0.55,
+        "bandwidthKHz": 2.0
+      }
+    },
+    {
+      "id": "hadoa-texana",
+      "common": "Texas Cicada",
+      "latin": "Hadoa texana",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "Western North America",
+      "blurb": "Texas Cicada (Hadoa texana) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "hapithus-saltator",
+      "common": "Jumping Bush Cricket",
+      "latin": "Hapithus saltator",
+      "authority": "",
+      "family": "Cricket",
+      "familyLatin": "Gryllidae",
+      "group": "cricket",
+      "sizeMm": [
+        10,
+        20
+      ],
+      "freqKHz": 3.8,
+      "freqRange": [
+        3.0,
+        5.0
+      ],
+      "pulseRate": null,
+      "callType": "Trill/chirp",
+      "tempSensitive": true,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Grass & shrubs",
+      "range": "North America",
+      "blurb": "Jumping Bush Cricket (Hapithus saltator) is a North American cricket included in Stridulate's trained model.",
+      "songDesc": "A trilling or chirping song typical of crickets.",
+      "signature": {
+        "freqKHz": 3.8,
+        "pulseRate": null,
+        "broadband": false,
+        "pulseRegularity": 0.55,
+        "bandwidthKHz": 2.0
+      }
+    },
+    {
+      "id": "magicicada-cassini",
+      "common": "Cassin's Periodical Cicada",
+      "latin": "Magicicada cassini",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "North America",
+      "blurb": "Cassin's Periodical Cicada (Magicicada cassini) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "magicicada-neotredecim",
+      "common": "13-Year Periodical Cicada",
+      "latin": "Magicicada neotredecim",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "North America",
+      "blurb": "13-Year Periodical Cicada (Magicicada neotredecim) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "magicicada-septendecim",
+      "common": "Pharaoh Cicada",
+      "latin": "Magicicada septendecim",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "North America",
+      "blurb": "Pharaoh Cicada (Magicicada septendecim) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "magicicada-septendecula",
+      "common": "17-Year Periodical Cicada",
+      "latin": "Magicicada septendecula",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "North America",
+      "blurb": "17-Year Periodical Cicada (Magicicada septendecula) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "magicicada-tredecassini",
+      "common": "13-Year Cassin's Cicada",
+      "latin": "Magicicada tredecassini",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "North America",
+      "blurb": "13-Year Cassin's Cicada (Magicicada tredecassini) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "magicicada-tredecim",
+      "common": "13-Year Periodical Cicada",
+      "latin": "Magicicada tredecim",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "North America",
+      "blurb": "13-Year Periodical Cicada (Magicicada tredecim) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "magicicada-tredecula",
+      "common": "13-Year Periodical Cicada",
+      "latin": "Magicicada tredecula",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "North America",
+      "blurb": "13-Year Periodical Cicada (Magicicada tredecula) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "megatibicen-dealbatus",
+      "common": "Plains Cicada",
+      "latin": "Megatibicen dealbatus",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "North America",
+      "blurb": "Plains Cicada (Megatibicen dealbatus) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "megatibicen-pronotalis",
+      "common": "Walker's Cicada",
+      "latin": "Megatibicen pronotalis",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "North America",
+      "blurb": "Walker's Cicada (Megatibicen pronotalis) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "megatibicen-resh",
+      "common": "Resh Cicada",
+      "latin": "Megatibicen resh",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "North America",
+      "blurb": "Resh Cicada (Megatibicen resh) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "microcentrum-rhombifolium",
+      "common": "Greater Angle-wing Katydid",
+      "latin": "Microcentrum rhombifolium",
+      "authority": "",
+      "family": "Katydid",
+      "familyLatin": "Tettigoniidae",
+      "group": "katydid",
+      "sizeMm": [
+        20,
+        60
+      ],
+      "freqKHz": 8.0,
+      "freqRange": [
+        5.0,
+        15.0
+      ],
+      "pulseRate": null,
+      "callType": "Raspy song",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Trees & shrubs",
+      "range": "North America",
+      "blurb": "Greater Angle-wing Katydid (Microcentrum rhombifolium) is a North American katydid included in Stridulate's trained model.",
+      "songDesc": "A raspy, repetitive song produced by wing stridulation.",
+      "signature": {
+        "freqKHz": 8.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 10.0
+      }
+    },
+    {
+      "id": "neocicada-hieroglyphica",
+      "common": "Hieroglyphic Cicada",
+      "latin": "Neocicada hieroglyphica",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "North America",
+      "blurb": "Hieroglyphic Cicada (Neocicada hieroglyphica) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "neoconocephalus-ensiger",
+      "common": "Sword-bearing Conehead",
+      "latin": "Neoconocephalus ensiger",
+      "authority": "",
+      "family": "Katydid",
+      "familyLatin": "Tettigoniidae",
+      "group": "katydid",
+      "sizeMm": [
+        20,
+        60
+      ],
+      "freqKHz": 8.0,
+      "freqRange": [
+        5.0,
+        15.0
+      ],
+      "pulseRate": null,
+      "callType": "Raspy song",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Trees & shrubs",
+      "range": "North America",
+      "blurb": "Sword-bearing Conehead (Neoconocephalus ensiger) is a North American katydid included in Stridulate's trained model.",
+      "songDesc": "A raspy, repetitive song produced by wing stridulation.",
+      "signature": {
+        "freqKHz": 8.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 10.0
+      }
+    },
+    {
+      "id": "neoconocephalus-nebrascensis",
+      "common": "Nebraska Conehead",
+      "latin": "Neoconocephalus nebrascensis",
+      "authority": "",
+      "family": "Katydid",
+      "familyLatin": "Tettigoniidae",
+      "group": "katydid",
+      "sizeMm": [
+        20,
+        60
+      ],
+      "freqKHz": 8.0,
+      "freqRange": [
+        5.0,
+        15.0
+      ],
+      "pulseRate": null,
+      "callType": "Raspy song",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Trees & shrubs",
+      "range": "North America",
+      "blurb": "Nebraska Conehead (Neoconocephalus nebrascensis) is a North American katydid included in Stridulate's trained model.",
+      "songDesc": "A raspy, repetitive song produced by wing stridulation.",
+      "signature": {
+        "freqKHz": 8.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 10.0
+      }
+    },
+    {
+      "id": "neoconocephalus-retusus",
+      "common": "Round-tipped Conehead",
+      "latin": "Neoconocephalus retusus",
+      "authority": "",
+      "family": "Katydid",
+      "familyLatin": "Tettigoniidae",
+      "group": "katydid",
+      "sizeMm": [
+        20,
+        60
+      ],
+      "freqKHz": 8.0,
+      "freqRange": [
+        5.0,
+        15.0
+      ],
+      "pulseRate": null,
+      "callType": "Raspy song",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Trees & shrubs",
+      "range": "North America",
+      "blurb": "Round-tipped Conehead (Neoconocephalus retusus) is a North American katydid included in Stridulate's trained model.",
+      "songDesc": "A raspy, repetitive song produced by wing stridulation.",
+      "signature": {
+        "freqKHz": 8.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 10.0
+      }
+    },
+    {
+      "id": "neoconocephalus-triops",
+      "common": "Broad-tipped Conehead",
+      "latin": "Neoconocephalus triops",
+      "authority": "",
+      "family": "Katydid",
+      "familyLatin": "Tettigoniidae",
+      "group": "katydid",
+      "sizeMm": [
+        20,
+        60
+      ],
+      "freqKHz": 8.0,
+      "freqRange": [
+        5.0,
+        15.0
+      ],
+      "pulseRate": null,
+      "callType": "Raspy song",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Trees & shrubs",
+      "range": "North America",
+      "blurb": "Broad-tipped Conehead (Neoconocephalus triops) is a North American katydid included in Stridulate's trained model.",
+      "songDesc": "A raspy, repetitive song produced by wing stridulation.",
+      "signature": {
+        "freqKHz": 8.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 10.0
+      }
+    },
+    {
+      "id": "neocurtilla-hexadactyla",
+      "common": "Northern Mole Cricket",
+      "latin": "Neocurtilla hexadactyla",
+      "authority": "",
+      "family": "Cricket",
+      "familyLatin": "Gryllidae",
+      "group": "cricket",
+      "sizeMm": [
+        10,
+        20
+      ],
+      "freqKHz": 3.8,
+      "freqRange": [
+        3.0,
+        5.0
+      ],
+      "pulseRate": null,
+      "callType": "Trill/chirp",
+      "tempSensitive": true,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Grass & shrubs",
+      "range": "North America",
+      "blurb": "Northern Mole Cricket (Neocurtilla hexadactyla) is a North American cricket included in Stridulate's trained model.",
+      "songDesc": "A trilling or chirping song typical of crickets.",
+      "signature": {
+        "freqKHz": 3.8,
+        "pulseRate": null,
+        "broadband": false,
+        "pulseRegularity": 0.55,
+        "bandwidthKHz": 2.0
+      }
+    },
+    {
+      "id": "neotibicen-canicularis",
+      "common": "Dog-day Cicada",
+      "latin": "Neotibicen canicularis",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "North America",
+      "blurb": "Dog-day Cicada (Neotibicen canicularis) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "neotibicen-davisi",
+      "common": "Davis's Cicada",
+      "latin": "Neotibicen davisi",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "North America",
+      "blurb": "Davis's Cicada (Neotibicen davisi) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "neotibicen-latifasciatus",
+      "common": "Coastal Scissor-grinder",
+      "latin": "Neotibicen latifasciatus",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "North America",
+      "blurb": "Coastal Scissor-grinder (Neotibicen latifasciatus) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "neotibicen-linnei",
+      "common": "Linne's Cicada",
+      "latin": "Neotibicen linnei",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "North America",
+      "blurb": "Linne's Cicada (Neotibicen linnei) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "neotibicen-lyricen",
+      "common": "Lyric Cicada",
+      "latin": "Neotibicen lyricen",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "North America",
+      "blurb": "Lyric Cicada (Neotibicen lyricen) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "neotibicen-pruinosus",
+      "common": "Scissor-grinder Cicada",
+      "latin": "Neotibicen pruinosus",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "North America",
+      "blurb": "Scissor-grinder Cicada (Neotibicen pruinosus) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "neotibicen-robinsonianus",
+      "common": "Robinson's Cicada",
+      "latin": "Neotibicen robinsonianus",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "North America",
+      "blurb": "Robinson's Cicada (Neotibicen robinsonianus) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "neotibicen-superbus",
+      "common": "Superb Cicada",
+      "latin": "Neotibicen superbus",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "North America",
+      "blurb": "Superb Cicada (Neotibicen superbus) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "neotibicen-tibicen",
+      "common": "Swamp Cicada",
+      "latin": "Neotibicen tibicen",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "North America",
+      "blurb": "Swamp Cicada (Neotibicen tibicen) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "neotibicen-winnemanna",
+      "common": "Eastern Scissor-grinder",
+      "latin": "Neotibicen winnemanna",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "North America",
+      "blurb": "Eastern Scissor-grinder (Neotibicen winnemanna) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "neoxabea-bipunctata",
+      "common": "Two-spotted Tree Cricket",
+      "latin": "Neoxabea bipunctata",
+      "authority": "",
+      "family": "Cricket",
+      "familyLatin": "Gryllidae",
+      "group": "cricket",
+      "sizeMm": [
+        10,
+        20
+      ],
+      "freqKHz": 3.8,
+      "freqRange": [
+        3.0,
+        5.0
+      ],
+      "pulseRate": null,
+      "callType": "Trill/chirp",
+      "tempSensitive": true,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Grass & shrubs",
+      "range": "North America",
+      "blurb": "Two-spotted Tree Cricket (Neoxabea bipunctata) is a North American cricket included in Stridulate's trained model.",
+      "songDesc": "A trilling or chirping song typical of crickets.",
+      "signature": {
+        "freqKHz": 3.8,
+        "pulseRate": null,
+        "broadband": false,
+        "pulseRegularity": 0.55,
+        "bandwidthKHz": 2.0
+      }
+    },
+    {
+      "id": "oecanthus-californicus",
+      "common": "California Tree Cricket",
+      "latin": "Oecanthus californicus",
+      "authority": "",
+      "family": "Cricket",
+      "familyLatin": "Gryllidae",
+      "group": "cricket",
+      "sizeMm": [
+        10,
+        20
+      ],
+      "freqKHz": 3.8,
+      "freqRange": [
+        3.0,
+        5.0
+      ],
+      "pulseRate": null,
+      "callType": "Trill/chirp",
+      "tempSensitive": true,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Grass & shrubs",
+      "range": "North America",
+      "blurb": "California Tree Cricket (Oecanthus californicus) is a North American cricket included in Stridulate's trained model.",
+      "songDesc": "A trilling or chirping song typical of crickets.",
+      "signature": {
+        "freqKHz": 3.8,
+        "pulseRate": null,
+        "broadband": false,
+        "pulseRegularity": 0.55,
+        "bandwidthKHz": 2.0
+      }
+    },
+    {
+      "id": "oecanthus-fultoni",
+      "common": "Snowy Tree Cricket",
+      "latin": "Oecanthus fultoni",
+      "authority": "",
+      "family": "Cricket",
+      "familyLatin": "Gryllidae",
+      "group": "cricket",
+      "sizeMm": [
+        10,
+        20
+      ],
+      "freqKHz": 3.8,
+      "freqRange": [
+        3.0,
+        5.0
+      ],
+      "pulseRate": null,
+      "callType": "Trill/chirp",
+      "tempSensitive": true,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Grass & shrubs",
+      "range": "North America",
+      "blurb": "Snowy Tree Cricket (Oecanthus fultoni) is a North American cricket included in Stridulate's trained model.",
+      "songDesc": "A trilling or chirping song typical of crickets.",
+      "signature": {
+        "freqKHz": 3.8,
+        "pulseRate": null,
+        "broadband": false,
+        "pulseRegularity": 0.55,
+        "bandwidthKHz": 2.0
+      }
+    },
+    {
+      "id": "oecanthus-latipennis",
+      "common": "Broad-winged Tree Cricket",
+      "latin": "Oecanthus latipennis",
+      "authority": "",
+      "family": "Cricket",
+      "familyLatin": "Gryllidae",
+      "group": "cricket",
+      "sizeMm": [
+        10,
+        20
+      ],
+      "freqKHz": 3.8,
+      "freqRange": [
+        3.0,
+        5.0
+      ],
+      "pulseRate": null,
+      "callType": "Trill/chirp",
+      "tempSensitive": true,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Grass & shrubs",
+      "range": "North America",
+      "blurb": "Broad-winged Tree Cricket (Oecanthus latipennis) is a North American cricket included in Stridulate's trained model.",
+      "songDesc": "A trilling or chirping song typical of crickets.",
+      "signature": {
+        "freqKHz": 3.8,
+        "pulseRate": null,
+        "broadband": false,
+        "pulseRegularity": 0.55,
+        "bandwidthKHz": 2.0
+      }
+    },
+    {
+      "id": "oecanthus-nigricornis",
+      "common": "Black-horned Tree Cricket",
+      "latin": "Oecanthus nigricornis",
+      "authority": "",
+      "family": "Cricket",
+      "familyLatin": "Gryllidae",
+      "group": "cricket",
+      "sizeMm": [
+        10,
+        20
+      ],
+      "freqKHz": 3.8,
+      "freqRange": [
+        3.0,
+        5.0
+      ],
+      "pulseRate": null,
+      "callType": "Trill/chirp",
+      "tempSensitive": true,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Grass & shrubs",
+      "range": "North America",
+      "blurb": "Black-horned Tree Cricket (Oecanthus nigricornis) is a North American cricket included in Stridulate's trained model.",
+      "songDesc": "A trilling or chirping song typical of crickets.",
+      "signature": {
+        "freqKHz": 3.8,
+        "pulseRate": null,
+        "broadband": false,
+        "pulseRegularity": 0.55,
+        "bandwidthKHz": 2.0
+      }
+    },
+    {
+      "id": "oecanthus-quadripunctatus",
+      "common": "Four-spotted Tree Cricket",
+      "latin": "Oecanthus quadripunctatus",
+      "authority": "",
+      "family": "Cricket",
+      "familyLatin": "Gryllidae",
+      "group": "cricket",
+      "sizeMm": [
+        10,
+        20
+      ],
+      "freqKHz": 3.8,
+      "freqRange": [
+        3.0,
+        5.0
+      ],
+      "pulseRate": null,
+      "callType": "Trill/chirp",
+      "tempSensitive": true,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Grass & shrubs",
+      "range": "North America",
+      "blurb": "Four-spotted Tree Cricket (Oecanthus quadripunctatus) is a North American cricket included in Stridulate's trained model.",
+      "songDesc": "A trilling or chirping song typical of crickets.",
+      "signature": {
+        "freqKHz": 3.8,
+        "pulseRate": null,
+        "broadband": false,
+        "pulseRegularity": 0.55,
+        "bandwidthKHz": 2.0
+      }
+    },
+    {
+      "id": "oecanthus-rileyi",
+      "common": "Riley's Tree Cricket",
+      "latin": "Oecanthus rileyi",
+      "authority": "",
+      "family": "Cricket",
+      "familyLatin": "Gryllidae",
+      "group": "cricket",
+      "sizeMm": [
+        10,
+        20
+      ],
+      "freqKHz": 3.8,
+      "freqRange": [
+        3.0,
+        5.0
+      ],
+      "pulseRate": null,
+      "callType": "Trill/chirp",
+      "tempSensitive": true,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Grass & shrubs",
+      "range": "North America",
+      "blurb": "Riley's Tree Cricket (Oecanthus rileyi) is a North American cricket included in Stridulate's trained model.",
+      "songDesc": "A trilling or chirping song typical of crickets.",
+      "signature": {
+        "freqKHz": 3.8,
+        "pulseRate": null,
+        "broadband": false,
+        "pulseRegularity": 0.55,
+        "bandwidthKHz": 2.0
+      }
+    },
+    {
+      "id": "okanagana-bella",
+      "common": "Mountain Cicada",
+      "latin": "Okanagana bella",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "Western North America",
+      "blurb": "Mountain Cicada (Okanagana bella) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "okanagana-canadensis",
+      "common": "Canadian Cicada",
+      "latin": "Okanagana canadensis",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "Western North America",
+      "blurb": "Canadian Cicada (Okanagana canadensis) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "okanagana-canescens",
+      "common": "Hoary Cicada",
+      "latin": "Okanagana canescens",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "Western North America",
+      "blurb": "Hoary Cicada (Okanagana canescens) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "okanagana-occidentalis",
+      "common": "Western Cicada",
+      "latin": "Okanagana occidentalis",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "Western North America",
+      "blurb": "Western Cicada (Okanagana occidentalis) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "okanagana-rimosa",
+      "common": "Say's Cicada",
+      "latin": "Okanagana rimosa",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "Western North America",
+      "blurb": "Say's Cicada (Okanagana rimosa) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "okanagana-triangulata",
+      "common": "Triangle Cicada",
+      "latin": "Okanagana triangulata",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "Western North America",
+      "blurb": "Triangle Cicada (Okanagana triangulata) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "orchelimum-gladiator",
+      "common": "Gladiator Meadow Katydid",
+      "latin": "Orchelimum gladiator",
+      "authority": "",
+      "family": "Katydid",
+      "familyLatin": "Tettigoniidae",
+      "group": "katydid",
+      "sizeMm": [
+        20,
+        60
+      ],
+      "freqKHz": 8.0,
+      "freqRange": [
+        5.0,
+        15.0
+      ],
+      "pulseRate": null,
+      "callType": "Raspy song",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Trees & shrubs",
+      "range": "North America",
+      "blurb": "Gladiator Meadow Katydid (Orchelimum gladiator) is a North American katydid included in Stridulate's trained model.",
+      "songDesc": "A raspy, repetitive song produced by wing stridulation.",
+      "signature": {
+        "freqKHz": 8.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 10.0
+      }
+    },
+    {
+      "id": "orchelimum-nigripes",
+      "common": "Black-legged Meadow Katydid",
+      "latin": "Orchelimum nigripes",
+      "authority": "",
+      "family": "Katydid",
+      "familyLatin": "Tettigoniidae",
+      "group": "katydid",
+      "sizeMm": [
+        20,
+        60
+      ],
+      "freqKHz": 8.0,
+      "freqRange": [
+        5.0,
+        15.0
+      ],
+      "pulseRate": null,
+      "callType": "Raspy song",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Trees & shrubs",
+      "range": "North America",
+      "blurb": "Black-legged Meadow Katydid (Orchelimum nigripes) is a North American katydid included in Stridulate's trained model.",
+      "songDesc": "A raspy, repetitive song produced by wing stridulation.",
+      "signature": {
+        "freqKHz": 8.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 10.0
+      }
+    },
+    {
+      "id": "paracyrtophyllus-robustus",
+      "common": "Robust Katydid",
+      "latin": "Paracyrtophyllus robustus",
+      "authority": "",
+      "family": "Katydid",
+      "familyLatin": "Tettigoniidae",
+      "group": "katydid",
+      "sizeMm": [
+        20,
+        60
+      ],
+      "freqKHz": 8.0,
+      "freqRange": [
+        5.0,
+        15.0
+      ],
+      "pulseRate": null,
+      "callType": "Raspy song",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Trees & shrubs",
+      "range": "North America",
+      "blurb": "Robust Katydid (Paracyrtophyllus robustus) is a North American katydid included in Stridulate's trained model.",
+      "songDesc": "A raspy, repetitive song produced by wing stridulation.",
+      "signature": {
+        "freqKHz": 8.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 10.0
+      }
+    },
+    {
+      "id": "phyllopalpus-pulchellus",
+      "common": "Handsome Trig",
+      "latin": "Phyllopalpus pulchellus",
+      "authority": "",
+      "family": "Cricket",
+      "familyLatin": "Gryllidae",
+      "group": "cricket",
+      "sizeMm": [
+        10,
+        20
+      ],
+      "freqKHz": 3.8,
+      "freqRange": [
+        3.0,
+        5.0
+      ],
+      "pulseRate": null,
+      "callType": "Trill/chirp",
+      "tempSensitive": true,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Grass & shrubs",
+      "range": "North America",
+      "blurb": "Handsome Trig (Phyllopalpus pulchellus) is a North American cricket included in Stridulate's trained model.",
+      "songDesc": "A trilling or chirping song typical of crickets.",
+      "signature": {
+        "freqKHz": 3.8,
+        "pulseRate": null,
+        "broadband": false,
+        "pulseRegularity": 0.55,
+        "bandwidthKHz": 2.0
+      }
+    },
+    {
+      "id": "platypedia-minor",
+      "common": "Small Wing-banger Cicada",
+      "latin": "Platypedia minor",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "Western North America",
+      "blurb": "Small Wing-banger Cicada (Platypedia minor) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "platypedia-putnami",
+      "common": "Putnam's Cicada",
+      "latin": "Platypedia putnami",
+      "authority": "",
+      "family": "Cicada",
+      "familyLatin": "Cicadidae",
+      "group": "cicada",
+      "sizeMm": [
+        25,
+        50
+      ],
+      "freqKHz": 6.0,
+      "freqRange": [
+        4.0,
+        10.0
+      ],
+      "pulseRate": null,
+      "callType": "Buzz/whine",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "nocturnal": false,
+      "habitat": "Trees",
+      "range": "Western North America",
+      "blurb": "Putnam's Cicada (Platypedia putnami) is a North American cicada included in Stridulate's trained model.",
+      "songDesc": "A loud buzzing or whining call produced by tymbal organs.",
+      "signature": {
+        "freqKHz": 6.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 6.0
+      }
+    },
+    {
+      "id": "pterophylla-camellifolia",
+      "common": "Common True Katydid",
+      "latin": "Pterophylla camellifolia",
+      "authority": "",
+      "family": "Katydid",
+      "familyLatin": "Tettigoniidae",
+      "group": "katydid",
+      "sizeMm": [
+        20,
+        60
+      ],
+      "freqKHz": 8.0,
+      "freqRange": [
+        5.0,
+        15.0
+      ],
+      "pulseRate": null,
+      "callType": "Raspy song",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Trees & shrubs",
+      "range": "North America",
+      "blurb": "Common True Katydid (Pterophylla camellifolia) is a North American katydid included in Stridulate's trained model.",
+      "songDesc": "A raspy, repetitive song produced by wing stridulation.",
+      "signature": {
+        "freqKHz": 8.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 10.0
+      }
+    },
+    {
+      "id": "scudderia-septentrionalis",
+      "common": "Northern Bush Katydid",
+      "latin": "Scudderia septentrionalis",
+      "authority": "",
+      "family": "Katydid",
+      "familyLatin": "Tettigoniidae",
+      "group": "katydid",
+      "sizeMm": [
+        20,
+        60
+      ],
+      "freqKHz": 8.0,
+      "freqRange": [
+        5.0,
+        15.0
+      ],
+      "pulseRate": null,
+      "callType": "Raspy song",
+      "tempSensitive": false,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Trees & shrubs",
+      "range": "North America",
+      "blurb": "Northern Bush Katydid (Scudderia septentrionalis) is a North American katydid included in Stridulate's trained model.",
+      "songDesc": "A raspy, repetitive song produced by wing stridulation.",
+      "signature": {
+        "freqKHz": 8.0,
+        "pulseRate": null,
+        "broadband": true,
+        "pulseRegularity": 0.35,
+        "bandwidthKHz": 10.0
+      }
+    },
+    {
+      "id": "velarifictorus-micado",
+      "common": "Japanese Burrowing Cricket",
+      "latin": "Velarifictorus micado",
+      "authority": "",
+      "family": "Cricket",
+      "familyLatin": "Gryllidae",
+      "group": "cricket",
+      "sizeMm": [
+        10,
+        20
+      ],
+      "freqKHz": 3.8,
+      "freqRange": [
+        3.0,
+        5.0
+      ],
+      "pulseRate": null,
+      "callType": "Trill/chirp",
+      "tempSensitive": true,
+      "months": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "nocturnal": true,
+      "habitat": "Grass & shrubs",
+      "range": "North America",
+      "blurb": "Japanese Burrowing Cricket (Velarifictorus micado) is a North American cricket included in Stridulate's trained model.",
+      "songDesc": "A trilling or chirping song typical of crickets.",
+      "signature": {
+        "freqKHz": 3.8,
+        "pulseRate": null,
+        "broadband": false,
+        "pulseRegularity": 0.55,
+        "bandwidthKHz": 2.0
+      }
+    }
+  ],
+  "packs": []
+}

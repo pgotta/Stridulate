@@ -1,0 +1,7 @@
+{
+  "mel_mean": -22.74435933127373,
+  "mel_std": 19.653133590333827,
+  "computed_from": "all overlapping windows in v4 training split only",
+  "value_count": 3017193088,
+  "recordings": 5104
+}
