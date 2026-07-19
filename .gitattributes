@@ -6,6 +6,3 @@
 *.webp binary
 *.tflite binary
 *.jar binary
-app/src/main/assets/labels.txt binary
-app/src/main/assets/model_meta.json binary
-app/src/main/assets/normalization.json binary
