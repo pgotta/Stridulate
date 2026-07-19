@@ -1,23 +1,27 @@
 # Stridulate
 
+> **Work in progress / proof of concept.** Stridulate is not yet a dependable field-identification product. It is published for experimentation, testing, and open development; expect false matches, conservative rejections, and uneven species coverage.
+
 **Private, on-device insect sound identification for Android.**
 
 Stridulate listens to recordings of crickets, katydids, cicadas, and related singing insects, then compares the audio with a focused Tier 1 TensorFlow Lite model. It displays the three closest supported matches, explains how reliable each class currently is, and can optionally use broad region, season, time of day, and current outdoor temperature as observation context.
 
-> Stridulate is an identification aid, not a scientific guarantee. The current model supports a limited Tier 1 species set and should be expected to say **No confident match** when an insect is unsupported, unclear, distant, or masked by other sounds.
+> Stridulate is an identification aid, not a scientific guarantee. The current model supports 66 singing-insect species and should be expected to say **No confident match** when an insect is unsupported, unclear, distant, or masked by other sounds.
+
+> The bundled epoch-19 model is research-only because its source pool includes noncommercial licenses.
 
 ## Highlights
 
 - Runs the audio classifier locally on the Android device.
-- Uses the exact Tier 1 v5 TensorFlow Lite model and preprocessing frontend.
-- Supports 21 insect classes plus `Unknown_or_unsupported`.
+- Uses the exact epoch-19 67-class TensorFlow Lite model and preprocessing frontend.
+- Supports 66 insect classes plus `Unknown_or_unsupported`.
 - Shows the **Top 3** supported matches instead of forcing one answer.
 - Uses calibrated confidence and margin gates.
-- Displays **Identified**, **Possible match**, or **No confident match**.
+- Displays **Strong possible match**, **Possible match**, or **No confident match**.
 - Labels classes as **Verified**, **Good**, or **Experimental**.
 - Offers optional approximate location or manually entered U.S. city/ZIP context.
 - Adds broad region, season, actual day/night status, current temperature, and humidity.
-- Refreshes current location/weather automatically before a live recording after 10 minutes.
+- Refreshes optional location/weather in the background after 10 minutes and never delays recording.
 - Provides a visible **Refresh now** control and can rerank an existing result with refreshed context.
 - Assesses recording quality locally, including clipping, signal strength, signal clarity, active-signal coverage, and possible overlapping callers.
 - Treats imported recordings safely by asking whether to use current conditions or audio-only analysis.
@@ -44,7 +48,7 @@ It should perform best when:
 
 It will struggle when:
 
-- The insect is not one of the 21 supported classes.
+- The insect is not one of the 66 supported classes.
 - Multiple insects overlap in a dense chorus.
 - The caller is distant or very quiet.
 - Wind or human-made noise dominates the clip.
@@ -70,18 +74,32 @@ When a user records an insect, Stridulate:
 9. Optionally applies small contextual adjustments for region, season, and time.
 10. Displays the three most plausible supported species.
 
-The model input is FLOAT32 `[1, 128, 431, 1]`. The output is FLOAT32 `[1, 22]`. Output size is read from the model tensor at runtime rather than hardcoded.
+The model input is FLOAT32 `[1, 128, 431, 1]`. The output is FLOAT32 `[1, 67]`. Output size is read from the model tensor at runtime rather than hardcoded.
+
+
+## v2.3.1+ field safety overlay
+
+The model's original 0.35 confidence and 0.08 margin calibration is preserved for provenance, but it is no longer sufficient to present a species candidate. Real phone recordings can make an incorrect known class receive a high softmax score. The runtime therefore applies stricter, precision-first acceptance rules:
+
+- Verified: at least **0.85 confidence** and **0.25 margin**
+- Good: at least **0.90 confidence** and **0.30 margin**
+- Experimental: at least **0.93 confidence** and **0.35 margin**
+- Greater Angle-wing temporary override: at least **0.95 confidence** and **0.40 margin**
+- Not Ready: never accepted as primary
+- Gross frequency, bandwidth, or rhythm conflict: rejected
+
+A **Strong possible match** additionally requires a Verified class, at least 0.95 confidence, a 0.40 margin, Good recording quality, and a passing acoustic-profile check. It is still not a confirmed identification.
 
 ## Understanding results
 
-### Identified
+### Strong possible match
 
-Direct **Identified** wording is reserved for a Verified species that passes both the calibrated confidence threshold and the winner-versus-runner-up margin threshold.
+Direct **Strong possible match** wording is reserved for a Verified species that passes both the calibrated confidence threshold and the winner-versus-runner-up margin threshold.
 
 Example:
 
 ```text
-Identified: Common True Katydid
+Strong possible match: Common True Katydid
 87% audio match
 Reliability: Verified
 ```
@@ -91,6 +109,8 @@ This means the model has comparatively strong evaluation support for that class.
 ### Possible match
 
 Good and Experimental classes use **Possible match**, even when their model percentage is high.
+
+Not Ready classes are never accepted as the primary result; they can appear only as nearby alternatives under **No confident match**.
 
 ```text
 Possible match: Carolina Ground Cricket
@@ -120,7 +140,7 @@ The tiers describe support within this particular model release—not the biolog
 
 ### Verified
 
-The strongest classes in the locked Tier 1 evaluation. These are eligible for direct **Identified** wording when the confidence and margin gates pass.
+The strongest classes in the locked Tier 1 evaluation. These are eligible for direct **Strong possible match** wording when the confidence and margin gates pass.
 
 ### Good
 
@@ -132,11 +152,12 @@ Classes with limited recordings, inconsistent evaluation performance, challengin
 
 The current release contains:
 
-- 4 Verified classes
-- 6 Good classes
-- 11 Experimental classes
+- 14 Verified classes
+- 3 Good classes
+- 32 Experimental classes
+- 17 Not Ready classes
 
-The tier assignments are stored in `app/src/main/assets/species_reliability.json`.
+The tier assignments are stored in `app/src/main/assets/android_reliability.json`.
 
 ## Region, season, time, and current weather
 
@@ -164,10 +185,12 @@ Updated just now · Weather observation 4 minutes ago
 
 ### Freshness policy
 
+Location/weather is optional and runs independently from audio capture. Pressing **Record** starts the microphone immediately; it never waits for GPS or the network.
+
 The old two-hour normal cache has been replaced with a stricter policy:
 
-- **Under 10 minutes:** considered fresh for a new live recording.
-- **10–30 minutes:** Stridulate attempts an automatic refresh before live recording; the prior value may remain usable if refresh fails.
+- **Under 10 minutes:** considered fresh; no automatic network request is made.
+- **10–30 minutes:** Stridulate attempts an automatic background refresh; the prior value may remain usable if refresh fails, and recording is never interrupted.
 - **Over 30 minutes:** temperature is not used for species-specific scoring. The cutoff uses whichever is older: Stridulate's fetch time or the weather provider's observation timestamp.
 - **Up to 2 hours:** retained only as an offline display fallback for the same rounded location.
 - **Over 2 hours:** temperature and humidity are discarded until refreshed.
@@ -218,7 +241,7 @@ The overlap warning is advisory. It does not yet separate individual species int
 
 ## Unknown recordings and community identification
 
-A **No confident match** or **Possible match** does not have to become discarded data. Stridulate 2.2.1 provides an explicit community-review loop:
+A **No confident match** or **Possible match** does not have to become discarded data. Stridulate provides an explicit community-review loop:
 
 1. Save the original lossless WAV and result metadata in the local **Unknowns** archive.
 2. Share the WAV to iNaturalist and verify the original observation date and approximate location there.
@@ -264,7 +287,7 @@ The exact ordered model labels are stored in:
 app/src/main/assets/labels.txt
 ```
 
-The model contains 21 supported insect classes plus:
+The model contains 66 supported insect classes plus:
 
 ```text
 Unknown_or_unsupported
@@ -326,7 +349,8 @@ app/src/main/assets/
 ├── model_meta.json
 ├── normalization.json
 ├── species.json
-├── species_reliability.json
+├── android_reliability.json
+├── audit_manifest.json
 └── context_profiles.json
 
 tools/
@@ -436,7 +460,7 @@ Before treating the app as release-ready, test:
 - native 44.1 kHz and resampled recordings,
 - location permission denied, accepted, and later revoked,
 - manual city/ZIP entry,
-- automatic ten-minute weather refresh and the manual **Refresh now** action,
+- non-blocking ten-minute background context refresh and the manual **Refresh now** action,
 - 30-minute scoring cutoff and two-hour offline-display fallback,
 - current-location refresh failure and stale-weather handling,
 - imported-file **Use current conditions** versus **Audio only** behavior,

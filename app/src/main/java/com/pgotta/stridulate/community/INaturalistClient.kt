@@ -14,7 +14,7 @@ class INaturalistClient {
         connection.readTimeout = 12_000
         connection.requestMethod = "GET"
         connection.setRequestProperty("Accept", "application/json")
-        connection.setRequestProperty("User-Agent", "Stridulate/2.2.1 Android community-link")
+        connection.setRequestProperty("User-Agent", "Stridulate/2.3.2 Android community-link")
         return try {
             val status = connection.responseCode
             val stream = if (status in 200..299) connection.inputStream else connection.errorStream

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline integrity and contract checks for Stridulate Tier 1 Android v2.2.1."""
+"""Offline integrity and contract checks for Stridulate Android v2.3.2."""
 from __future__ import annotations
 
 import hashlib
@@ -14,49 +14,144 @@ ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "app/src/main/assets"
 SRC = ROOT / "app/src/main/java"
 
-EXPECTED_MODEL_SHA256 = "a08e6b367882c20517f956f23eaf3f3456a730df749090331700337937661b43"
-EXPECTED_MODEL_BYTES = 80_807_052
-EXPECTED_LABELS_SHA256 = "aa8d46c67b74aeb3111a4452da2a56e2179632cabc5c545509c8d2e09e0b242f"
-EXPECTED_METADATA_SHA256 = "1ffd723088268838b93fdfe2d856cf1003ac490fcac3da69d6f1d0aba309c5ef"
-EXPECTED_NORMALIZATION_SHA256 = "b2f5af67b27b57a18042df8865b30c80dd0ae3aaa126195a30802cca4aba4b4e"
-EXPECTED_LABELS = [
-    "Acheta_domesticus",
-    "Allonemobius_fasciatus",
-    "Amblycorypha_oblongifolia",
-    "Gryllus_pennsylvanicus",
-    "Microcentrum_rhombifolium",
-    "Neocicada_hieroglyphica",
-    "Neoconocephalus_ensiger",
-    "Neoconocephalus_nebrascensis",
-    "Neocurtilla_hexadactyla",
-    "Neotibicen_canicularis",
-    "Neotibicen_linnei",
-    "Neotibicen_lyricen",
-    "Neotibicen_pruinosus",
-    "Neotibicen_robinsonianus",
-    "Neotibicen_superbus",
-    "Neotibicen_tibicen",
-    "Oecanthus_californicus",
-    "Oecanthus_fultoni",
-    "Platypedia_minor",
-    "Pterophylla_camellifolia",
-    "Velarifictorus_micado",
-    "Unknown_or_unsupported",
-]
-EXPECTED_VERIFIED = {
-    "Neotibicen_pruinosus",
-    "Neotibicen_robinsonianus",
-    "Neotibicen_tibicen",
-    "Pterophylla_camellifolia",
-}
-EXPECTED_GOOD = {
-    "Gryllus_pennsylvanicus",
-    "Neocicada_hieroglyphica",
-    "Neoconocephalus_ensiger",
-    "Neocurtilla_hexadactyla",
-    "Neotibicen_linnei",
-    "Neotibicen_superbus",
-}
+EXPECTED_MODEL_SHA256 = '395ba28333005261956edc3fd5366e8b14f57dbe3d3cb14d40ba6ea2da0afccf'
+EXPECTED_MODEL_BYTES = 81037632
+EXPECTED_LABELS_SHA256 = 'b25347cca542d44e2591c76288c7d34bb440d03ed14c995d24237b2e081bab82'
+EXPECTED_METADATA_SHA256 = 'c61a60069bb5a88d0b8a0703468d5ffdbf762086f9358ece95df20b3f23971bc'
+EXPECTED_NORMALIZATION_SHA256 = 'b2f5af67b27b57a18042df8865b30c80dd0ae3aaa126195a30802cca4aba4b4e'
+EXPECTED_RELIABILITY_SHA256 = '4ebc9c16a74ac9d32f3eb85aa3c482afcec916da792e51524b3eea19ae4f9c6e'
+EXPECTED_AUDIT_SHA256 = '4551404cb4d7a448578865682c9926de28280c1c8feae94d194074c85c7aeb2a'
+EXPECTED_LABELS = ['Acheta_domesticus',
+ 'Allonemobius_allardi',
+ 'Allonemobius_fasciatus',
+ 'Amblycorypha_oblongifolia',
+ 'Cacama_valvata',
+ 'Conocephalus_brevipennis',
+ 'Cyrtoxipha_columbiana',
+ 'Diceroprocta_eugraphica',
+ 'Diceroprocta_grossa',
+ 'Diceroprocta_viridifascia',
+ 'Diceroprocta_vitripennis',
+ 'Eunemobius_carolinus',
+ 'Gryllus_assimilis',
+ 'Gryllus_pennsylvanicus',
+ 'Gryllus_veletis',
+ 'Hadoa_texana',
+ 'Hapithus_saltator',
+ 'Magicicada_cassini',
+ 'Magicicada_neotredecim',
+ 'Magicicada_septendecim',
+ 'Magicicada_septendecula',
+ 'Magicicada_tredecassini',
+ 'Magicicada_tredecim',
+ 'Magicicada_tredecula',
+ 'Megatibicen_dealbatus',
+ 'Megatibicen_pronotalis',
+ 'Megatibicen_resh',
+ 'Microcentrum_rhombifolium',
+ 'Neocicada_hieroglyphica',
+ 'Neoconocephalus_ensiger',
+ 'Neoconocephalus_nebrascensis',
+ 'Neoconocephalus_retusus',
+ 'Neoconocephalus_triops',
+ 'Neocurtilla_hexadactyla',
+ 'Neotibicen_canicularis',
+ 'Neotibicen_davisi',
+ 'Neotibicen_latifasciatus',
+ 'Neotibicen_linnei',
+ 'Neotibicen_lyricen',
+ 'Neotibicen_pruinosus',
+ 'Neotibicen_robinsonianus',
+ 'Neotibicen_superbus',
+ 'Neotibicen_tibicen',
+ 'Neotibicen_winnemanna',
+ 'Neoxabea_bipunctata',
+ 'Oecanthus_californicus',
+ 'Oecanthus_fultoni',
+ 'Oecanthus_latipennis',
+ 'Oecanthus_nigricornis',
+ 'Oecanthus_quadripunctatus',
+ 'Oecanthus_rileyi',
+ 'Okanagana_bella',
+ 'Okanagana_canadensis',
+ 'Okanagana_canescens',
+ 'Okanagana_occidentalis',
+ 'Okanagana_rimosa',
+ 'Okanagana_triangulata',
+ 'Orchelimum_gladiator',
+ 'Orchelimum_nigripes',
+ 'Paracyrtophyllus_robustus',
+ 'Phyllopalpus_pulchellus',
+ 'Platypedia_minor',
+ 'Platypedia_putnami',
+ 'Pterophylla_camellifolia',
+ 'Scudderia_septentrionalis',
+ 'Velarifictorus_micado',
+ 'Unknown_or_unsupported']
+EXPECTED_VERIFIED = {'Acheta_domesticus',
+ 'Gryllus_pennsylvanicus',
+ 'Microcentrum_rhombifolium',
+ 'Neocicada_hieroglyphica',
+ 'Neoconocephalus_ensiger',
+ 'Neocurtilla_hexadactyla',
+ 'Neotibicen_canicularis',
+ 'Neotibicen_pruinosus',
+ 'Neotibicen_robinsonianus',
+ 'Neotibicen_superbus',
+ 'Neotibicen_tibicen',
+ 'Oecanthus_fultoni',
+ 'Pterophylla_camellifolia',
+ 'Velarifictorus_micado'}
+EXPECTED_GOOD = {'Neoconocephalus_nebrascensis', 'Amblycorypha_oblongifolia', 'Neotibicen_linnei'}
+EXPECTED_EXPERIMENTAL = {'Allonemobius_fasciatus',
+ 'Cacama_valvata',
+ 'Conocephalus_brevipennis',
+ 'Cyrtoxipha_columbiana',
+ 'Diceroprocta_eugraphica',
+ 'Diceroprocta_grossa',
+ 'Eunemobius_carolinus',
+ 'Gryllus_veletis',
+ 'Hadoa_texana',
+ 'Hapithus_saltator',
+ 'Magicicada_cassini',
+ 'Magicicada_neotredecim',
+ 'Magicicada_septendecim',
+ 'Magicicada_tredecula',
+ 'Megatibicen_dealbatus',
+ 'Megatibicen_pronotalis',
+ 'Megatibicen_resh',
+ 'Neoconocephalus_retusus',
+ 'Neoconocephalus_triops',
+ 'Neotibicen_davisi',
+ 'Neotibicen_lyricen',
+ 'Neotibicen_winnemanna',
+ 'Oecanthus_californicus',
+ 'Oecanthus_latipennis',
+ 'Oecanthus_rileyi',
+ 'Okanagana_canadensis',
+ 'Okanagana_rimosa',
+ 'Orchelimum_nigripes',
+ 'Paracyrtophyllus_robustus',
+ 'Phyllopalpus_pulchellus',
+ 'Platypedia_minor',
+ 'Platypedia_putnami'}
+EXPECTED_NOT_READY = {'Allonemobius_allardi',
+ 'Diceroprocta_viridifascia',
+ 'Diceroprocta_vitripennis',
+ 'Gryllus_assimilis',
+ 'Magicicada_septendecula',
+ 'Magicicada_tredecassini',
+ 'Magicicada_tredecim',
+ 'Neotibicen_latifasciatus',
+ 'Neoxabea_bipunctata',
+ 'Oecanthus_nigricornis',
+ 'Oecanthus_quadripunctatus',
+ 'Okanagana_bella',
+ 'Okanagana_canescens',
+ 'Okanagana_occidentalis',
+ 'Okanagana_triangulata',
+ 'Orchelimum_gladiator',
+ 'Scudderia_septentrionalis'}
 
 
 def fail(message: str) -> None:
@@ -183,9 +278,11 @@ def main() -> int:
         ASSETS / "labels.txt",
         ASSETS / "model_meta.json",
         ASSETS / "normalization.json",
-        ASSETS / "species_reliability.json",
+        ASSETS / "android_reliability.json",
+        ASSETS / "audit_manifest.json",
         ASSETS / "context_profiles.json",
         ASSETS / "species.json",
+        ROOT / "MODEL_EPOCH19_AUDIT.md",
         ROOT / "gradle/wrapper/gradle-wrapper.jar",
         ROOT / "gradlew",
         ROOT / "gradlew.bat",
@@ -203,28 +300,34 @@ def main() -> int:
     labels_path = ASSETS / "labels.txt"
     metadata_path = ASSETS / "model_meta.json"
     normalization_path = ASSETS / "normalization.json"
+    reliability_path = ASSETS / "android_reliability.json"
+    audit_path = ASSETS / "audit_manifest.json"
 
-    if sha256(model_path) != EXPECTED_MODEL_SHA256:
-        fail("Bundled TFLite model checksum differs from insect_model(3).tflite")
-    if sha256(labels_path) != EXPECTED_LABELS_SHA256:
-        fail("Bundled labels checksum differs from V50 labels")
-    if sha256(metadata_path) != EXPECTED_METADATA_SHA256:
-        fail("Bundled model metadata checksum differs from V50 metadata")
-    if sha256(normalization_path) != EXPECTED_NORMALIZATION_SHA256:
-        fail("Bundled normalization checksum differs from V50 normalization")
+    expected_hashes = {
+        model_path: EXPECTED_MODEL_SHA256,
+        labels_path: EXPECTED_LABELS_SHA256,
+        metadata_path: EXPECTED_METADATA_SHA256,
+        normalization_path: EXPECTED_NORMALIZATION_SHA256,
+        reliability_path: EXPECTED_RELIABILITY_SHA256,
+        audit_path: EXPECTED_AUDIT_SHA256,
+    }
+    for path, expected in expected_hashes.items():
+        actual = sha256(path)
+        if actual != expected:
+            fail(f"Bundled asset checksum mismatch for {path.name}: {actual} != {expected}")
 
     labels = [line.strip() for line in labels_path.read_text(encoding="utf-8").splitlines() if line.strip()]
     if labels != EXPECTED_LABELS:
-        fail("Labels are not the exact ordered Tier 1 v5 list")
+        fail("Labels are not the exact ordered epoch-19 67-class list")
 
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     expected_contract = {
         "schema_version": 4,
-        "classes": 22,
+        "classes": 67,
         "unknown_label": "Unknown_or_unsupported",
-        "unknown_index": 21,
+        "unknown_index": 66,
         "model_input_shape": [1, 128, 431, 1],
-        "model_output_shape": [1, 22],
+        "model_output_shape": [1, 67],
         "model_input_dtype": "float32",
         "model_output_dtype": "float32",
         "sample_rate": 44100,
@@ -242,42 +345,91 @@ def main() -> int:
         "mel_scale": "htk",
         "mel_norm": None,
         "pooling": "mean_logits_across_all_50_percent_overlapping_windows",
-        "calibration_temperature": 0.6830036044120789,
-        "minimum_confidence": 0.8600000000000004,
+        "calibration_temperature": 0.8342779874801636,
+        "minimum_confidence": 0.35,
         "minimum_top1_top2_margin": 0.08,
     }
     for key, expected in expected_contract.items():
         if metadata.get(key) != expected:
             fail(f"Metadata mismatch for {key}: {metadata.get(key)!r} != {expected!r}")
     if metadata.get("labels_sha256") != EXPECTED_LABELS_SHA256:
-        fail("Metadata labels checksum is not the v5 checksum")
-    if not str(metadata.get("dataset", "")).startswith("Stridulate Tier 1 US model v5.0"):
-        fail("Metadata dataset is not Tier 1 v5")
+        fail("Metadata labels checksum is not the epoch-19 checksum")
+    if metadata.get("dataset") != "InsectSet459 v1.1 plus 8760 grouped supplemental recordings (research-only license pool)":
+        fail("Metadata dataset provenance changed unexpectedly")
+    if not metadata.get("tflite_parity", {}).get("passed") or not metadata.get("tflite_parity", {}).get("top1_equal"):
+        fail("The bundled metadata does not record a passed TFLite parity test")
 
     normalization = json.loads(normalization_path.read_text(encoding="utf-8"))
     embedded_norm = metadata["normalization"]
     if normalization.get("mel_mean") != embedded_norm.get("mean") or normalization.get("mel_std") != embedded_norm.get("std"):
         fail("normalization.json does not match model_meta.json")
 
-    reliability = json.loads((ASSETS / "species_reliability.json").read_text(encoding="utf-8"))
-    if set(reliability.get("verified_labels", [])) != EXPECTED_VERIFIED:
-        fail("Verified-label set does not match the V50 locked-holdout report")
-    if set(reliability.get("good_labels", [])) != EXPECTED_GOOD:
-        fail("Good-label set does not match the documented V50-derived tier rule")
-    status_by_label = reliability.get("status_by_label", {})
-    if set(status_by_label) != set(EXPECTED_LABELS):
-        fail("Reliability status map does not cover every v5 label")
-    if {label for label, tier in status_by_label.items() if tier == "VERIFIED"} != EXPECTED_VERIFIED:
-        fail("Reliability status map has an unexpected Verified tier")
-    if {label for label, tier in status_by_label.items() if tier == "GOOD"} != EXPECTED_GOOD:
-        fail("Reliability status map has an unexpected Good tier")
-    if status_by_label.get("Unknown_or_unsupported") != "UNKNOWN_GATE":
-        fail("Unknown/Unsupported is not marked as the rejection gate")
+    reliability = json.loads(reliability_path.read_text(encoding="utf-8"))
+    if reliability.get("schema_version") != 2:
+        fail("Unsupported Android reliability schema")
+    if reliability.get("model_labels_sha256") != EXPECTED_LABELS_SHA256:
+        fail("Reliability data does not match labels.txt")
+    safety = reliability.get("open_set_safety_gate", {})
+    expected_rules = {
+        "VERIFIED": (0.85, 0.25),
+        "GOOD": (0.90, 0.30),
+        "EXPERIMENTAL": (0.93, 0.35),
+        "NOT_READY": (1.0, 1.0),
+        "UNKNOWN_GATE": (1.0, 1.0),
+    }
+    if safety.get("enabled") is not True or safety.get("field_test_mode") is not True:
+        fail("Precision-first open-set safety mode is not enabled")
+    strong = safety.get("strong_possible_match", {})
+    if strong.get("minimum_confidence") != 0.95 or strong.get("minimum_top1_top2_margin") != 0.40:
+        fail("Strong-possible-match safety thresholds changed unexpectedly")
+    for tier, (confidence, margin) in expected_rules.items():
+        rule = safety.get("tier_rules", {}).get(tier, {})
+        if rule.get("minimum_confidence") != confidence or rule.get("minimum_top1_top2_margin") != margin:
+            fail(f"Open-set rule mismatch for {tier}")
+    greater_anglewing = safety.get("species_overrides", {}).get("Microcentrum_rhombifolium", {})
+    if greater_anglewing.get("minimum_confidence") != 0.95 or greater_anglewing.get("minimum_top1_top2_margin") != 0.40:
+        fail("Greater Angle-wing precision override is missing")
+    reliability_species = reliability.get("species", [])
+    reliability_labels = [item.get("label") for item in reliability_species]
+    if reliability_labels != labels:
+        fail("Reliability entries are not in exact model-label order")
+    if [item.get("index") for item in reliability_species] != list(range(len(labels))):
+        fail("Reliability indices are not contiguous model indices")
+    status_by_label = {item["label"]: item["tier"] for item in reliability_species}
+    tier_expectations = {
+        "VERIFIED": EXPECTED_VERIFIED,
+        "GOOD": EXPECTED_GOOD,
+        "EXPERIMENTAL": EXPECTED_EXPERIMENTAL,
+        "NOT_READY": EXPECTED_NOT_READY,
+        "UNKNOWN_GATE": {"Unknown_or_unsupported"},
+    }
+    for tier, expected in tier_expectations.items():
+        actual = {label for label, value in status_by_label.items() if value == tier}
+        if actual != expected:
+            fail(f"Unexpected {tier} reliability set: {sorted(actual ^ expected)}")
+    for item in reliability_species:
+        expected_primary = item["tier"] not in {"NOT_READY", "UNKNOWN_GATE"}
+        if item.get("primary_result_allowed_after_global_gate") is not expected_primary:
+            fail(f"Invalid primary-result rule for {item['label']}")
+
+    audit = json.loads(audit_path.read_text(encoding="utf-8"))
+    if audit.get("best_epoch") != 19 or abs(audit.get("best_selection_score", 0.0) - 0.8666692989117276) > 1e-12:
+        fail("Epoch-19 best-checkpoint provenance is missing")
+    export = audit.get("export", {})
+    if export.get("sha256") != EXPECTED_MODEL_SHA256 or export.get("labels_sha256") != EXPECTED_LABELS_SHA256:
+        fail("Audit manifest does not match the bundled model and labels")
+    if export.get("tflite_parity_passed") is not True or export.get("top1_equal") is not True:
+        fail("Audit manifest does not record passed TFLite parity")
+    if audit.get("research_only_license") is not True:
+        fail("Research-only model license warning is missing")
 
     context_profiles = json.loads((ASSETS / "context_profiles.json").read_text(encoding="utf-8"))
     profiles = context_profiles.get("profiles", {})
-    if set(profiles) != set(EXPECTED_LABELS[:-1]):
-        fail("Context profiles do not cover exactly the 21 supported Tier 1 labels")
+    supported_labels = set(labels[:-1])
+    if not set(profiles).issubset(supported_labels):
+        fail("Context profiles contain labels not supported by the model")
+    if not profiles:
+        fail("No vetted region profiles remain bundled")
     for label, profile in profiles.items():
         regions = profile.get("regions")
         if not isinstance(regions, list) or not regions:
@@ -294,21 +446,22 @@ def main() -> int:
     guide_latin = {norm_latin(item["latin"]) for item in guide["species"]}
     unmapped = [label for label in labels[:-1] if norm_latin(label) not in guide_latin]
     if unmapped:
-        fail(f"V5 labels lack field-guide mappings: {unmapped}")
+        fail(f"Model labels lack field-guide mappings: {unmapped}")
 
     tflite = inspect_tflite(model_path)
     if tflite["input"]["shape"] != [1, 128, 431, 1] or tflite["input"]["type"] != 0:
         fail(f"Unexpected TFLite input tensor: {tflite['input']}")
-    if tflite["output"]["shape"] != [1, 22] or tflite["output"]["type"] != 0:
+    if tflite["output"]["shape"] != [1, 67] or tflite["output"]["type"] != 0:
         fail(f"Unexpected TFLite output tensor: {tflite['output']}")
 
     gradle_text = (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")
-    if 'versionName = "2.2.1"' not in gradle_text:
-        fail("App versionName is not 2.2.1")
-    if not re.search(r"versionCode\s*=\s*9\b", gradle_text):
-        fail("App versionCode is not 9")
+    if 'versionName = "2.3.2"' not in gradle_text:
+        fail("App versionName is not 2.3.2")
+    if not re.search(r"versionCode\s*=\s*12\b", gradle_text):
+        fail("App versionCode is not 12")
 
     classifier_text = (SRC / "com/pgotta/stridulate/classifier/TfLiteClassifier.kt").read_text(encoding="utf-8")
+    decision_text = (SRC / "com/pgotta/stridulate/classifier/OpenSetDecision.kt").read_text(encoding="utf-8")
     mel_text = (SRC / "com/pgotta/stridulate/classifier/MelSpectrogram.kt").read_text(encoding="utf-8")
     resampler_text = (SRC / "com/pgotta/stridulate/audio/SincResampler.kt").read_text(encoding="utf-8")
     viewmodel_text = (SRC / "com/pgotta/stridulate/ui/StridulateViewModel.kt").read_text(encoding="utf-8")
@@ -332,8 +485,8 @@ def main() -> int:
     community_workflow_text = (ROOT / ".github/workflows/community-identification-sync.yml").read_text(encoding="utf-8")
     community_sync_text = (ROOT / "tools/sync_inaturalist_issues.py").read_text(encoding="utf-8")
 
-    if "EXPECTED_CLASSES" in classifier_text or "66-class" in classifier_text:
-        fail("Classifier still contains an obsolete hardcoded 66-class contract")
+    if "EXPECTED_CLASSES" in classifier_text:
+        fail("Classifier contains a hardcoded output-count contract")
     if "outputElementCount = outputShape.fold" not in classifier_text:
         fail("Classifier output count is not derived dynamically from the output tensor")
     if "pooledLogits[it] / metadata.calibrationTemperature" not in classifier_text:
@@ -341,21 +494,35 @@ def main() -> int:
     if "val clampedDb = max(logMel[time][melIndex], floor)" not in mel_text or "- globalMax" in mel_text:
         fail("Mel frontend does not retain torchaudio-compatible absolute dB values")
     if "LOWPASS_FILTER_WIDTH = 32" not in resampler_text or "ROLLOFF = 0.9475937167" not in resampler_text:
-        fail("Resampler does not match the v5 training/evaluation settings")
-    for phrase in ("No confident match", "Possible match", "Identified", "calibrated model scores, not scientific certainty"):
+        fail("Resampler does not match the training/evaluation settings")
+    for phrase in ("No confident match", "Possible match", "Strong possible match", "not the probability that the species is correct"):
         if phrase not in result_text:
             fail(f"Missing required result wording: {phrase}")
-    for tier in ("VERIFIED", "GOOD", "EXPERIMENTAL"):
+    for tier in ("VERIFIED", "GOOD", "EXPERIMENTAL", "NOT_READY"):
         if f"ReliabilityTier.{tier}" not in result_text or f"ReliabilityTier.{tier}" not in guide_text:
             fail(f"Reliability tier is not surfaced in both result and guide UI: {tier}")
     if ".tier.displayName" not in result_text or ".tier.displayName" not in guide_text:
         fail("Reliability display names are not rendered in result and guide UI")
     if "supportedTopThree" not in viewmodel_text or ".take(3)" not in viewmodel_text:
         fail("Top-three supported species selection is missing")
-    if "topIsUnknown || !passesThresholds" not in viewmodel_text:
-        fail("Unknown/confidence/margin rejection gate is missing")
-    if "topTier == ReliabilityTier.VERIFIED" not in viewmodel_text:
-        fail("Direct identification is not restricted to the Verified tier")
+    if "OpenSetDecision.evaluate" not in viewmodel_text:
+        fail("ViewModel is not using the precision-first decision gate")
+    for phrase in ("topIsUnknown", "top.audioConfidence < requiredConfidence", "margin < requiredMargin"):
+        if phrase not in decision_text:
+            fail(f"Unknown/confidence/margin rejection gate is missing: {phrase}")
+    if "!reliability.primaryResultAllowed" not in decision_text:
+        fail("Not Ready classes are not blocked from primary identification")
+    if "tier == ReliabilityTier.VERIFIED" not in decision_text:
+        fail("Strong-possible-match acceptance is not restricted to the Verified tier")
+    acoustic_text = (SRC / "com/pgotta/stridulate/audio/AcousticCompatibility.kt").read_text(encoding="utf-8")
+    for phrase in ("AcousticCompatibility.assess", "requiredConfidence", "requiredMargin", "strongMinimumConfidence"):
+        if phrase not in decision_text:
+            fail(f"Precision-first runtime gate is missing: {phrase}")
+    for phrase in ("narrowband", "frequency", "pulse rate"):
+        if phrase not in acoustic_text:
+            fail(f"Acoustic compatibility guard is missing: {phrase}")
+    if "Likely match" in result_text:
+        fail("Unsafe Likely match wording remains in the result UI")
 
     if "geocoding-api.open-meteo.com/v1/search" not in environment_text:
         fail("Manual city/ZIP geocoding integration is missing")
@@ -375,8 +542,22 @@ def main() -> int:
         fail("Ten-minute refresh or thirty-minute scoring cutoff changed unexpectedly")
     if "2L * 60L * 60L * 1000L" not in environment_models_text:
         fail("Two-hour offline fallback limit changed unexpectedly")
-    if "refreshNow" not in environment_text or "forceFreshLocation = true" not in environment_text:
+    if "refreshNow" not in environment_text or "forceFreshDeviceLocation = true" not in environment_text:
         fail("On-demand current location/weather refresh is missing")
+    start_match = re.search(r"fun startListening\(\) \{(.*?)\n    \}", viewmodel_text, re.S)
+    if start_match is None:
+        fail("startListening implementation is missing")
+    start_body = start_match.group(1)
+    if "beginListening()" not in start_body or "refreshContextInBackgroundIfNeeded()" not in start_body:
+        fail("Recording is not started immediately with independent context refresh")
+    if "UiState.Analyzing" in start_body or "environmentRepository.refreshIfStale()" in start_body:
+        fail("Location/weather refresh can still block microphone startup")
+    if "while (isActive)" not in viewmodel_text or "CONTEXT_REFRESH_POLL_MILLIS" not in viewmodel_text:
+        fail("Background context scheduler is missing")
+    if "refreshCurrentContext(current, forceFreshDeviceLocation = false)" not in environment_text:
+        fail("Automatic refresh does not use the non-forced background path")
+    if "ContextMode.MANUAL -> refreshSavedCoordinates(current)" not in environment_text:
+        fail("Automatic manual-location refresh still re-geocodes unnecessarily")
     if "refreshedAtMillis = prior.refreshedAtMillis" not in environment_text:
         fail("Failed refresh can incorrectly make stale weather appear fresh")
     for phrase in ("active month", "region supported", "Context never rules a species out"):
@@ -490,11 +671,11 @@ def main() -> int:
     if "DisposableEffect(sp.id)" not in guide_screen or "onDispose(onStopPlayback)" not in guide_screen:
         fail("Guide screen does not release reference playback when removed")
 
-    print("PASS: exact Tier 1 v5 assets and checksums")
-    print(f"PASS: labels={len(labels)}; supported_species={len(labels) - 1}; verified={len(EXPECTED_VERIFIED)}; good={len(EXPECTED_GOOD)}")
+    print("PASS: exact epoch-19 67-class assets and checksums")
+    print(f"PASS: labels={len(labels)}; supported_species={len(labels) - 1}; verified={len(EXPECTED_VERIFIED)}; good={len(EXPECTED_GOOD)}; experimental={len(EXPECTED_EXPERIMENTAL)}; not_ready={len(EXPECTED_NOT_READY)}")
     print(f"PASS: TFLite input={tflite['input']} output={tflite['output']}")
-    print("PASS: dynamic output count, calibrated rejection, reliability tiers, top-three UI, version 2.2.1")
-    print("PASS: fresh/on-demand current weather, 30-minute scoring cutoff, two-hour offline fallback")
+    print("PASS: dynamic output count, original calibration plus precision-first open-set gate, top-three UI, version 2.3.2")
+    print("PASS: non-blocking ten-minute background context refresh, on-demand refresh, 30-minute scoring cutoff, two-hour offline fallback")
     print("PASS: imported-recording context safety, on-device recording-quality assessment, privacy exclusions")
     print("PASS: local unknown archive, iNaturalist linking/refresh, GitHub tracking, human-reviewed CC BY 4.0 export")
     print("PASS: Gradle wrapper JAR structure")

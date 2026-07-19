@@ -28,7 +28,8 @@ import kotlin.coroutines.resume
  *
  * Audio inference remains fully on-device. When context is enabled, only rounded coordinates
  * or a manual city/ZIP are sent to Open-Meteo for current weather. A manual refresh always
- * bypasses the cache. Live recordings automatically refresh weather after ten minutes.
+ * bypasses the cache. Automatic refresh runs independently after ten minutes and never blocks
+ * microphone recording.
  */
 class EnvironmentRepository(private val context: Context) {
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -132,31 +133,35 @@ class EnvironmentRepository(private val context: Context) {
         }
     }
 
-    /** Automatic pre-recording refresh after the ten-minute freshness window. */
+    /** Automatic ten-minute refresh. It is safe to call often and never owns recording UI. */
     suspend fun refreshIfStale() {
         val current = _state.value
         if (!current.enabled || current.status == ContextStatus.REFRESHING || current.isFresh) return
-        refreshCurrentContext(current)
+        refreshCurrentContext(current, forceFreshDeviceLocation = false)
     }
 
-    /** User-requested refresh always bypasses weather and location caches. */
+    /** User-requested refresh always asks for fresh device context when available. */
     suspend fun refreshNow() {
         val current = _state.value
         if (!current.enabled || current.status == ContextStatus.REFRESHING) return
-        refreshCurrentContext(current)
+        refreshCurrentContext(current, forceFreshDeviceLocation = true)
     }
 
-    private suspend fun refreshCurrentContext(current: ObservationContext) {
+    private suspend fun refreshCurrentContext(
+        current: ObservationContext,
+        forceFreshDeviceLocation: Boolean
+    ) {
         when (current.mode) {
             ContextMode.DEVICE -> {
-                if (hasLocationPermission()) useDeviceLocation(forceFreshLocation = true)
-                else markPermissionDenied()
+                if (hasLocationPermission()) {
+                    useDeviceLocation(forceFreshLocation = forceFreshDeviceLocation)
+                } else {
+                    markPermissionDenied()
+                }
             }
-            ContextMode.MANUAL -> {
-                val query = current.manualQuery
-                if (!query.isNullOrBlank()) useManualLocation(query)
-                else refreshSavedCoordinates(current)
-            }
+            // The coordinates are already known. Refreshing weather should not geocode the same
+            // city/ZIP every ten minutes.
+            ContextMode.MANUAL -> refreshSavedCoordinates(current)
             ContextMode.OFF -> Unit
         }
     }
@@ -204,7 +209,7 @@ class EnvironmentRepository(private val context: Context) {
                 timezoneId = weather.timezone ?: knownTimezone,
                 refreshedAtMillis = System.currentTimeMillis(),
                 manualQuery = manualQuery,
-                message = "Current weather updated just now. Automatic refresh occurs before recording after 10 minutes."
+                message = "Current weather updated just now. Background refresh runs after 10 minutes without delaying recording."
             )
             save(ready)
         } catch (e: Exception) {
@@ -398,11 +403,11 @@ class EnvironmentRepository(private val context: Context) {
         return when {
             fallbackExpired -> loaded.copy(
                 status = ContextStatus.STALE,
-                message = "Saved location is available, but weather is expired. Tap Refresh now or start a live recording while online."
+                message = "Saved location is available, but weather is expired. Tap Refresh now or leave the app open briefly while online."
             )
             !loaded.isFresh -> loaded.copy(
                 status = ContextStatus.STALE,
-                message = "${loaded.weatherAgeLabel}. Stridulate will refresh automatically before the next live recording."
+                message = "${loaded.weatherAgeLabel}. Stridulate will refresh automatically in the background."
             )
             else -> loaded
         }

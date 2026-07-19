@@ -213,7 +213,7 @@ object ReferenceSoundPlayer {
                 readTimeout = 15_000
                 setRequestProperty(
                     "User-Agent",
-                    "Stridulate/2.2.1 Android (taxon-matched reference audio)"
+                    "Stridulate/2.3.2 Android (taxon-matched reference audio)"
                 )
                 setRequestProperty("Accept", "application/json")
             }

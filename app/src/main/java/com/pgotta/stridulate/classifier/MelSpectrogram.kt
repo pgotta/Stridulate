@@ -6,7 +6,7 @@ import kotlin.math.ln
 import kotlin.math.max
 
 /**
- * Tier 1 v5 frontend, read from model_meta.json:
+ * Active model frontend, read from model_meta.json:
  * 44.1 kHz, 5-second windows, 2,048-point centered STFT with reflect padding,
  * periodic Hann, 512 hop, 128 HTK mel bands (400–22,050 Hz), 80 dB clipping,
  * and the training-set global z-score normalization.

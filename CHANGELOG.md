@@ -1,5 +1,36 @@
 # Changelog
 
+## 2.3.2 — GitHub proof-of-concept bundle and non-blocking context
+
+- Marked the repository clearly as a work-in-progress proof of concept rather than a finished identification product.
+- Removed the pre-record location/weather wait: pressing Record now starts the microphone immediately.
+- Moved optional device/manual context refresh to an independent background scheduler.
+- Background checks run once per minute but perform location/weather I/O only when the ten-minute freshness window has expired.
+- Automatic device refresh reuses a recent coarse location when available; **Refresh now** still requests a fresh fix.
+- Manual city/ZIP context reuses saved coordinates instead of geocoding the same place every ten minutes.
+- Added verification checks that prevent a future regression to blocking pre-record refresh.
+- Bumped Android version to 2.3.2 (version code 12).
+## 2.3.1 — Precision-first field safety update
+
+- Removed direct “Likely match” language; even the strongest result is now **Strong possible match**.
+- Added a precision-first open-set safety overlay above the original model calibration.
+- Verified classes now require at least 0.85 confidence and a 0.25 margin; Good requires 0.90/0.30; Experimental requires 0.93/0.35.
+- Added a temporary Greater Angle-wing override requiring 0.95 confidence and a 0.40 margin after a documented Columbian Trig confusion.
+- Added conservative frequency, bandwidth and rhythm sanity checks that may reject a neural-model candidate but never promote one.
+- Corrected the Columbian Trig field-guide profile to approximately 7 kHz and updated the Greater Angle-wing call description/profile.
+- Clarified that displayed percentages are model preferences among available classes, not probability of correctness.
+- Kept the epoch-19 model, 44.1 kHz mel frontend and original calibration untouched.
+
+## 2.3.0 — Epoch-19 67-class integration
+
+- Integrated the completed 67-output float32 TFLite model and exact labels/metadata.
+- Added the calibrated 0.35 confidence and 0.08 margin gate from the release evaluation.
+- Added 66-class reliability data, including the Not Ready safety tier.
+- Not Ready classes can no longer become the primary result.
+- Updated result wording to Likely match / Possible match / No confident match.
+- Preserved the proven 44.1 kHz mel frontend and dynamic output handling.
+- Added exact asset hashes and the epoch-19 audit manifest.
+
 ## 2.2.1
 
 - Fixed reference insect audio continuing after leaving a species detail page.

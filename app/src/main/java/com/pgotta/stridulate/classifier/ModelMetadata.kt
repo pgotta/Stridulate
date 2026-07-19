@@ -4,7 +4,7 @@ import android.content.Context
 import kotlin.math.abs
 import org.json.JSONObject
 
-/** Runtime contract bundled beside the Tier 1 v5 model. */
+/** Runtime contract bundled beside the 67-class epoch-19 model. */
 data class ModelMetadata(
     val schemaVersion: Int,
     val dataset: String,
@@ -35,7 +35,6 @@ data class ModelMetadata(
     val pooling: String
 ) {
     companion object {
-        private const val V5_DATASET_PREFIX = "Stridulate Tier 1 US model v5.0"
         private const val V5_POOLING = "mean_logits_across_all_50_percent_overlapping_windows"
 
         fun load(context: Context, assetName: String = "model_meta.json"): ModelMetadata {
@@ -71,9 +70,7 @@ data class ModelMetadata(
                 pooling = root.getString("pooling")
             ).also { metadata ->
                 require(metadata.schemaVersion == 4) { "Unsupported model metadata schema ${metadata.schemaVersion}." }
-                require(metadata.dataset.startsWith(V5_DATASET_PREFIX)) {
-                    "The bundled metadata is not the Tier 1 v5 model contract."
-                }
+                require(metadata.dataset.isNotBlank()) { "Model metadata is missing its dataset provenance." }
                 require(metadata.classes > 1) { "Model metadata has no usable classes." }
                 require(metadata.unknownIndex in 0 until metadata.classes) { "Invalid Unknown class index." }
                 require(metadata.inputShape.size == 4 && metadata.inputShape[0] == 1 && metadata.inputShape[3] == 1) {
@@ -86,24 +83,24 @@ data class ModelMetadata(
                 require(metadata.outputShape.fold(1) { product, value -> product * value } == metadata.classes) {
                     "Metadata output shape does not match its class count."
                 }
-                require(metadata.sampleRate == 44100) { "Tier 1 v5 requires 44.1 kHz preprocessing." }
+                require(metadata.sampleRate == 44100) { "The active model requires 44.1 kHz preprocessing." }
                 require(close(metadata.clipSeconds, 5.0) && close(metadata.windowOverlap, 0.5)) {
-                    "Tier 1 v5 requires 5-second windows with 50% overlap."
+                    "The active model requires 5-second windows with 50% overlap."
                 }
                 require(metadata.nMels == 128 && metadata.nFft == 2048 && metadata.hopLength == 512) {
-                    "Tier 1 v5 mel settings do not match the supported Android preprocessor."
+                    "The active model mel settings do not match the supported Android preprocessor."
                 }
                 require(metadata.winLength == metadata.nFft) { "Only full-length periodic Hann windows are supported." }
                 require(close(metadata.fmin, 400.0) && close(metadata.fmax, 22050.0) && close(metadata.topDb, 80.0)) {
-                    "Tier 1 v5 frequency or decibel settings do not match the Android frontend."
+                    "The active model frequency or decibel settings do not match the Android frontend."
                 }
                 require(metadata.center && metadata.padMode == "reflect") {
-                    "Tier 1 v5 requires centered STFT with reflect padding."
+                    "The active model requires centered STFT with reflect padding."
                 }
-                require(metadata.melScale == "htk") { "Tier 1 v5 requires the HTK mel scale." }
-                require(root.isNull("mel_norm")) { "Tier 1 v5 requires mel_norm=null." }
+                require(metadata.melScale == "htk") { "The active model requires the HTK mel scale." }
+                require(root.isNull("mel_norm")) { "The active model requires mel_norm=null." }
                 require(normalization.getString("type") == "global_zscore") {
-                    "Tier 1 v5 requires global z-score normalization."
+                    "The active model requires global z-score normalization."
                 }
                 require(metadata.normalizationStd > 0.0) { "Invalid global normalization standard deviation." }
                 require(metadata.calibrationTemperature > 0.0) { "Invalid calibration temperature." }

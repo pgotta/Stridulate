@@ -133,7 +133,7 @@ fun HomeScreen(
         Spacer(Modifier.height(15.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
             Chip("$speciesCount species", accent = true)
-            Chip(if (usingTrainedModel) "Tier 1 v5" else "Model unavailable")
+            Chip(if (usingTrainedModel) "Epoch 19" else "Model unavailable")
             Chip("Audio on-device")
         }
 

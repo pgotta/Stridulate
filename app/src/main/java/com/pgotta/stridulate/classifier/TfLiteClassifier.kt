@@ -17,7 +17,7 @@ import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 import kotlin.math.exp
 
-/** Runs the Tier 1 v5 FLOAT32 TFLite model fully offline. */
+/** Runs the 67-class epoch-19 FLOAT32 TFLite model fully offline. */
 class TfLiteClassifier(
     context: Context,
     species: List<Species>,
@@ -25,7 +25,7 @@ class TfLiteClassifier(
     labelsAsset: String = "labels.txt",
     metadataAsset: String = "model_meta.json",
     normalizationAsset: String = "normalization.json",
-    reliabilityAsset: String = "species_reliability.json"
+    reliabilityAsset: String = "android_reliability.json"
 ) : InsectClassifier {
 
     private val executor = Executors.newSingleThreadExecutor { task ->
@@ -51,30 +51,37 @@ class TfLiteClassifier(
         unknownLabel = metadata.unknownLabel,
         minimumConfidence = metadata.minimumConfidence,
         minimumMargin = metadata.minimumMargin,
-        reliabilityByLabel = labels.associateWith(reliabilityRepository::forLabel)
+        reliabilityByLabel = labels.associateWith(reliabilityRepository::forLabel),
+        openSetSafetyPolicy = reliabilityRepository.openSetSafetyPolicy
     )
     override val classCount: Int get() = outputElementCount
 
-    val backendName: String = "Tier 1 v5 · CPU · FLOAT32"
+    val backendName: String = "Epoch 19 · 67-class · CPU · FLOAT32"
     val datasetName: String get() = metadata.dataset
 
     init {
         require(sha256(labelBytes).equals(metadata.labelsSha256, ignoreCase = true)) {
-            "labels.txt does not match the v5 metadata checksum."
+            "labels.txt does not match the active model metadata checksum."
         }
         require(kotlin.math.abs(normalizationFile.getDouble("mel_mean") - metadata.normalizationMean) < 1e-12 &&
             kotlin.math.abs(normalizationFile.getDouble("mel_std") - metadata.normalizationStd) < 1e-12) {
-            "normalization.json does not match the v5 model metadata."
+            "normalization.json does not match the active model metadata."
         }
         require(labels.size == metadata.classes) {
-            "v5 metadata declares ${metadata.classes} classes, but labels.txt has ${labels.size}."
+            "Metadata declares ${metadata.classes} classes, but labels.txt has ${labels.size}."
         }
         require(labels.getOrNull(metadata.unknownIndex) == metadata.unknownLabel) {
-            "The v5 unknown label/index contract does not match labels.txt."
+            "The unknown label/index contract does not match labels.txt."
+        }
+        require(reliabilityRepository.modelLabelsSha256.equals(metadata.labelsSha256, ignoreCase = true)) {
+            "android_reliability.json does not match the model labels checksum."
+        }
+        require(reliabilityRepository.labels == labels.toSet()) {
+            "android_reliability.json does not cover the exact ordered model label set."
         }
         require(reliabilityRepository.verifiedLabels.isNotEmpty() &&
             reliabilityRepository.verifiedLabels.all { it in labels && it != metadata.unknownLabel }) {
-            "species_reliability.json does not match the v5 labels."
+            "android_reliability.json has no valid Verified classes."
         }
         labels.filterNot { it == metadata.unknownLabel }.forEach { label ->
             require(speciesByLatin.containsKey(normLatin(label))) {
@@ -147,7 +154,7 @@ class TfLiteClassifier(
         signature: MeasuredSignature
     ): List<Candidate> {
         val melWindows = mel.fromPcmWindows(pcm, sampleRate)
-        require(melWindows.isNotEmpty()) { "The v5 preprocessor produced no audio windows." }
+        require(melWindows.isNotEmpty()) { "The model preprocessor produced no audio windows." }
         melWindows.forEach { melSpec ->
             require(melSpec.size == metadata.nMels && melSpec.firstOrNull()?.size == metadata.inputShape[2]) {
                 "Preprocessor produced ${melSpec.size}x${melSpec.firstOrNull()?.size ?: 0}; " +
@@ -172,7 +179,7 @@ class TfLiteClassifier(
         val windowCount = melWindows.size.toDouble()
         for (index in pooledLogits.indices) pooledLogits[index] /= windowCount
 
-        // v5 calibration is applied after mean-logit pooling, exactly as metadata specifies.
+        // Calibration is applied after mean-logit pooling, exactly as metadata specifies.
         val scaled = DoubleArray(pooledLogits.size) {
             pooledLogits[it] / metadata.calibrationTemperature
         }

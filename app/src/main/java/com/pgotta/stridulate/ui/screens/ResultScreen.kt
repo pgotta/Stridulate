@@ -51,12 +51,12 @@ fun ResultScreen(
     val signature = result.signature
 
     val heading = when (result.decision) {
-        IdentificationDecision.IDENTIFIED -> "Identified"
+        IdentificationDecision.IDENTIFIED -> "Strong possible match"
         IdentificationDecision.POSSIBLE_MATCH -> "Possible match"
         IdentificationDecision.NO_CONFIDENT_MATCH -> "No confident match"
     }
     val badge = when (result.decision) {
-        IdentificationDecision.IDENTIFIED -> "VERIFIED-TIER ACOUSTIC MATCH"
+        IdentificationDecision.IDENTIFIED -> "STRICT SAFETY GATE PASSED · CONFIRM THE CALL"
         IdentificationDecision.POSSIBLE_MATCH ->
             "${top?.reliability?.tier?.displayName?.uppercase() ?: "LOWER-RELIABILITY"} TIER · REVIEW DETAILS"
         IdentificationDecision.NO_CONFIDENT_MATCH -> "MODEL CONFIDENCE GATE NOT PASSED"
@@ -67,10 +67,10 @@ fun ResultScreen(
     ) {
         AppBarRow(
             heading,
-            "TIER 1 V5",
+            "EPOCH 19 · 67 CLASSES",
             onBack = onBack,
             status = when (result.decision) {
-                IdentificationDecision.IDENTIFIED -> "accepted"
+                IdentificationDecision.IDENTIFIED -> "strong candidate"
                 IdentificationDecision.POSSIBLE_MATCH -> "possible"
                 IdentificationDecision.NO_CONFIDENT_MATCH -> "unresolved"
             },
@@ -81,7 +81,11 @@ fun ResultScreen(
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             if (top != null) ConfidenceRing(percentage)
             Text(
-                "CALIBRATED AUDIO SCORE",
+                if (result.decision == IdentificationDecision.NO_CONFIDENT_MATCH) {
+                    "CLOSEST MODEL SCORE — NOT AN IDENTIFICATION"
+                } else {
+                    "CALIBRATED MODEL SCORE — NOT CERTAINTY"
+                },
                 color = Mute,
                 fontFamily = JetBrainsMono,
                 fontSize = 9.sp,
@@ -183,15 +187,13 @@ fun ResultScreen(
         Spacer(Modifier.height(22.dp))
         DecisionCard(result)
 
-        if (result.decision != IdentificationDecision.IDENTIFIED) {
-            Spacer(Modifier.height(18.dp))
-            CommunityReviewCard(
-                result = result,
-                onSave = onSaveForCommunity,
-                onShare = onShareForIdentification,
-                onOpen = onOpenCommunity
-            )
-        }
+        Spacer(Modifier.height(18.dp))
+        CommunityReviewCard(
+            result = result,
+            onSave = onSaveForCommunity,
+            onShare = onShareForIdentification,
+            onOpen = onOpenCommunity
+        )
 
         result.recordingQuality?.let {
             Spacer(Modifier.height(18.dp))
@@ -218,7 +220,7 @@ fun ResultScreen(
             if (result.contextApplied) {
                 "Ranked with small region/season/time adjustments. Percentages remain the original calibrated audio-model scores, not scientific certainty."
             } else {
-                "Ranked by the audio model. Percentages are calibrated model scores, not scientific certainty."
+                "Ranked by the audio model. A percentage is the model's preference among its classes, not the probability that the species is correct."
             },
             fontFamily = Inter,
             fontSize = 11.5.sp,
@@ -316,6 +318,14 @@ private fun DecisionCard(result: IdResult) {
             MetricPill("Margin", "${(result.modelMargin * 100).roundToInt()}%")
             MetricPill("Min margin", "${(result.requiredMargin * 100).roundToInt()}%")
         }
+        Spacer(Modifier.height(9.dp))
+        Text(
+            "Acoustic sanity check: ${if (result.acousticCheckPassed) "PASSED" else "REJECTED"} — ${result.acousticCheckSummary}",
+            color = if (result.acousticCheckPassed) Mute else Danger,
+            fontFamily = Inter,
+            fontSize = 12.sp,
+            lineHeight = 18.sp
+        )
         if (result.decision == IdentificationDecision.NO_CONFIDENT_MATCH) {
             Spacer(Modifier.height(9.dp))
             Text(
@@ -574,5 +584,6 @@ private fun tierColor(tier: ReliabilityTier?): Color = when (tier) {
     ReliabilityTier.VERIFIED -> Biolume
     ReliabilityTier.GOOD -> AmberSoft
     ReliabilityTier.EXPERIMENTAL -> Amber
+    ReliabilityTier.NOT_READY -> Danger
     ReliabilityTier.UNKNOWN_GATE, null -> Mute
 }

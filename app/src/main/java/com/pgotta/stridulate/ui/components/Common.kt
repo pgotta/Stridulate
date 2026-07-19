@@ -159,9 +159,9 @@ fun SectionHeader(text: String, modifier: Modifier = Modifier) {
 }
 
 fun confidenceWord(pct: Int): String = when {
-    pct >= 80 -> "Confident"
-    pct >= 55 -> "Probable"
-    else -> "Uncertain"
+    pct >= 90 -> "High model score"
+    pct >= 70 -> "Moderate model score"
+    else -> "Low model score"
 }
 
 fun confidenceColor(pct: Int): Color = when {

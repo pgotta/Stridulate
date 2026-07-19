@@ -365,8 +365,14 @@ private fun ReliabilityPanel(info: ReliabilityInfo) {
         Text(info.conciseExplanation, fontFamily = Inter, fontSize = 12.5.sp, color = ParchDim, lineHeight = 18.sp)
         if (info.f1 != null && info.lockedRecordings != null) {
             Spacer(Modifier.height(7.dp))
+            val evidenceLabel = when (info.evidenceSource) {
+                "independent_supplemental_test" -> "Independent supplemental test"
+                "locked_holdout" -> "Locked holdout"
+                else -> "Release evaluation"
+            }
+            val sessionText = info.independentSessions?.let { " · $it independent sessions" } ?: ""
             Text(
-                "V50 locked holdout: F1 ${"%.2f".format(info.f1)} across ${info.lockedRecordings} recordings",
+                "$evidenceLabel: F1 ${"%.2f".format(info.f1)} across ${info.lockedRecordings} recordings$sessionText",
                 fontFamily = JetBrainsMono,
                 fontSize = 9.5.sp,
                 color = Mute
@@ -379,6 +385,7 @@ private fun tierColor(tier: ReliabilityTier): Color = when (tier) {
     ReliabilityTier.VERIFIED -> Biolume
     ReliabilityTier.GOOD -> AmberSoft
     ReliabilityTier.EXPERIMENTAL -> Amber
+    ReliabilityTier.NOT_READY -> Danger
     ReliabilityTier.UNKNOWN_GATE -> Mute
 }
 

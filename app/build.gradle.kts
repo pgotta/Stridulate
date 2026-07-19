@@ -13,8 +13,8 @@ android {
         applicationId = "com.pgotta.stridulate"
         minSdk = 26            // Android 8.0 — needed for MediaCodec async + AudioRecord features
         targetSdk = 34
-        versionCode = 9
-        versionName = "2.2.1"
+        versionCode = 12
+        versionName = "2.3.2"
         vectorDrawables { useSupportLibrary = true }
     }
 

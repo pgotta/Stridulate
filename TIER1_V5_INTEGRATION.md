@@ -1,30 +1,41 @@
-# Tier 1 v5 integration
+# Epoch-19 67-class model integration
 
-The app bundles the exact supplied model and V50 runtime assets:
+Stridulate v2.3.2 bundles the exact completed training export:
 
 - `app/src/main/assets/insect_model.tflite`
 - `app/src/main/assets/labels.txt`
 - `app/src/main/assets/model_meta.json`
 - `app/src/main/assets/normalization.json`
-- `app/src/main/assets/species_reliability.json`
-- `app/src/main/assets/context_profiles.json`
+- `app/src/main/assets/android_reliability.json`
+- `app/src/main/assets/audit_manifest.json`
 
-At startup the app validates:
+## Model contract
 
-- labels SHA-256 from v5 metadata,
-- TFLite input/output dtypes and shapes,
-- output element count derived from the actual output tensor,
-- Unknown label and index,
-- normalization values,
-- reliability and field-guide mappings for every supported label.
+- 66 supported singing-insect classes plus `Unknown_or_unsupported`
+- FLOAT32 input `[1, 128, 431, 1]`
+- FLOAT32 output `[1, 67]`
+- 44.1 kHz, five-second windows, 50% overlap
+- Mean-logit pooling across every window
+- Temperature calibration `0.8342779874801636`
+- Minimum confidence `0.35`
+- Minimum top-one/top-two margin `0.08`
 
-## Reliability tiers
+The output count is read from the TFLite tensor at runtime and checked against `labels.txt`; it is not hard-coded into inference.
 
-- **Verified:** explicitly marked VERIFIED in the V50 locked-holdout evaluation.
-- **Good:** not V50-verified, but locked-holdout F1 is at least 0.80 with at least eight recordings.
-- **Experimental:** remaining supported classes with more limited or uneven evaluation evidence.
-- **Unknown gate:** rejects unsupported or uncertain recordings.
+## Reliability behavior
 
-Only Verified species can produce the app's direct **Identified** wording. Good and Experimental species produce **Possible match** when the calibrated confidence and margin gates pass.
+- **Verified:** shown as **Strong possible match**.
+- **Good:** shown as **Possible match**.
+- **Experimental:** shown as **Possible match — limited validation**.
+- **Not Ready:** never accepted as the primary result; it may appear only among the closest alternatives beneath **No confident match**.
+- **Unknown gate:** rejects unsupported, uncertain, and non-insect/background recordings.
 
-These tiers describe this model evaluation only and do not establish scientific certainty.
+Reliability tiers describe evaluation support for this model release. They do not establish scientific certainty.
+
+## Release provenance
+
+The best preserved checkpoint is epoch 19 with selection score `0.8666692989`. The float32 TFLite parity test passed. See `MODEL_EPOCH19_AUDIT.md` and `app/src/main/assets/audit_manifest.json`.
+
+## License caution
+
+The model is research-only because its training pool includes noncommercial source licenses. The Android source can be developed and tested, but this model should not be used in a monetized release without a commercially compatible retraining pool.

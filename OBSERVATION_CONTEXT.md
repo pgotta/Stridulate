@@ -13,8 +13,9 @@ Coordinates from device location are rounded to two decimal places before storag
 
 ## Freshness and refresh behavior
 
-- Weather under **10 minutes** old is considered fresh for a new live recording.
-- At **10 minutes**, the app attempts an automatic location/weather refresh before recording.
+- Weather under **10 minutes** old is considered fresh.
+- At **10 minutes**, the app attempts an automatic location/weather refresh in an independent background coroutine.
+- Pressing **Record** starts the microphone immediately and never waits for location, weather, GPS, or the network.
 - A manual **Refresh now** action always bypasses the app cache.
 - Temperature may participate in a sourced species profile for at most **30 minutes**. The app conservatively uses whichever is older: its successful fetch time or Open-Meteo's returned observation timestamp.
 - A previous temperature may remain visible for up to **2 hours** only as an offline fallback for the same rounded coordinates.

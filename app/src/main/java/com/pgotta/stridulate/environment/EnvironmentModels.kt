@@ -118,7 +118,7 @@ data class ObservationContext(
             return ages.maxOrNull()
         }
 
-    /** Fresh enough that a new recording does not need an automatic network refresh. */
+    /** Fresh enough that the background scheduler does not need a network refresh. */
     val isFresh: Boolean
         get() = weatherAgeMillis?.let { it < AUTO_REFRESH_MILLIS } == true
 
@@ -153,7 +153,7 @@ data class ObservationContext(
     }
 
     companion object {
-        /** Request fresh weather automatically before a live recording after this age. */
+        /** Request fresh weather automatically in the background after this age. */
         const val AUTO_REFRESH_MILLIS: Long = 10L * 60L * 1000L
 
         /** Do not use an older temperature in species-specific scoring. */

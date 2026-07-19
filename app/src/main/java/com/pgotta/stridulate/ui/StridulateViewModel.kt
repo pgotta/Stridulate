@@ -15,6 +15,8 @@ import com.pgotta.stridulate.audio.RecordingQualityAssessor
 import com.pgotta.stridulate.classifier.Candidate
 import com.pgotta.stridulate.classifier.ClassificationPolicy
 import com.pgotta.stridulate.classifier.InsectClassifier
+import com.pgotta.stridulate.classifier.OpenSetDecision
+import com.pgotta.stridulate.classifier.OpenSetDecisionType
 import com.pgotta.stridulate.classifier.TfLiteClassifier
 import com.pgotta.stridulate.community.CommunityObservationRecord
 import com.pgotta.stridulate.community.CommunityObservationRepository
@@ -22,8 +24,8 @@ import com.pgotta.stridulate.community.EvidenceAudio
 import com.pgotta.stridulate.community.EvidenceAudioStore
 import com.pgotta.stridulate.community.EvidenceSource
 import com.pgotta.stridulate.community.INaturalistClient
+import com.pgotta.stridulate.data.OpenSetSafetyPolicy
 import com.pgotta.stridulate.data.ReliabilityInfo
-import com.pgotta.stridulate.data.ReliabilityTier
 import com.pgotta.stridulate.data.Species
 import com.pgotta.stridulate.data.SpeciesReliabilityRepository
 import com.pgotta.stridulate.data.SpeciesRepository
@@ -38,7 +40,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -68,6 +72,8 @@ data class IdResult(
     val modelMargin: Double = 0.0,
     val requiredConfidence: Double = 0.0,
     val requiredMargin: Double = 0.0,
+    val acousticCheckPassed: Boolean = false,
+    val acousticCheckSummary: String = "No acoustic profile check was available.",
     val observationContext: ObservationContext = ObservationContext(),
     val contextApplied: Boolean = false,
     val contextSummary: String = "Audio ranking only.",
@@ -122,7 +128,7 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun modelLabel(species: Species): String = species.latin.replace(' ', '_')
 
-    /** Field-guide entries supported by the bundled Tier 1 v5 labels, in label order. */
+    /** Field-guide entries supported by the bundled 67-class labels, in label order. */
     val tier1Species: List<Species> = try {
         val byLatin = repo.species.associateBy { normalizeLatin(it.latin) }
         app.assets.open("labels.txt").bufferedReader().useLines { lines ->
@@ -166,7 +172,8 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
             "labels.txt",
             "model_meta.json",
             "normalization.json",
-            "species_reliability.json",
+            "android_reliability.json",
+            "audit_manifest.json",
             "context_profiles.json"
         )
         val missing = requiredAssets.filterNot(::assetExists)
@@ -183,7 +190,7 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
                 ClassifierSetup(
                     classifier = trained,
                     usingTrainedModel = true,
-                    status = "Tier 1 v5 active · $supportedSpecies species + unsupported · ${trained.backendName}"
+                    status = "Epoch-19 model active · $supportedSpecies species + unsupported · ${trained.backendName}"
                 )
             } catch (e: Exception) {
                 ClassifierSetup(
@@ -223,6 +230,30 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
 
     private var liveExtractor: FeatureExtractor? = null
     private var workJob: Job? = null
+    private var contextRefreshJob: Job? = null
+
+    init {
+        // Observation context is optional and must never delay microphone startup. Polling is
+        // cheap; EnvironmentRepository only performs location/weather I/O after its ten-minute
+        // freshness window has expired.
+        viewModelScope.launch {
+            while (isActive) {
+                refreshContextInBackgroundIfNeeded()
+                delay(CONTEXT_REFRESH_POLL_MILLIS)
+            }
+        }
+    }
+
+    private fun refreshContextInBackgroundIfNeeded() {
+        if (contextRefreshJob?.isActive == true) return
+        contextRefreshJob = viewModelScope.launch {
+            try {
+                environmentRepository.refreshIfStale()
+            } finally {
+                contextRefreshJob = null
+            }
+        }
+    }
 
     fun useDeviceContext() {
         viewModelScope.launch { environmentRepository.useDeviceLocation() }
@@ -258,16 +289,10 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
     fun startListening() {
         cancelAnalysis(silent = true)
         mic.stop()
-        if (environment.value.enabled && !environment.value.isFresh) {
-            _ui.value = UiState.Analyzing("Refreshing current location and weather…")
-            launchWork {
-                environmentRepository.refreshIfStale()
-                currentCoroutineContext().ensureActive()
-                beginListening()
-            }
-        } else {
-            beginListening()
-        }
+        // Recording always starts immediately. Optional location/weather refresh runs on its own
+        // coroutine and can update the eventual observation context without blocking the mic.
+        beginListening()
+        refreshContextInBackgroundIfNeeded()
     }
 
     private fun beginListening() {
@@ -295,14 +320,7 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
             _ui.value = UiState.Error("Too quiet — get closer to the caller and try again.")
             return
         }
-        if (sig.insectLikelihood < INSECT_THRESHOLD) {
-            _ui.value = UiState.Error(
-                "That didn't sound like a singing insect. Voices, wind, traffic and other " +
-                    "noise can't be identified. Try again near a clear, steady call."
-            )
-            return
-        }
-        _ui.value = UiState.Analyzing("Checking recording quality and matching the Tier 1 model…")
+        _ui.value = UiState.Analyzing("Checking recording quality and matching the epoch-19 model…")
         val (pcm, pcmSr) = mic.capturedPcm()
         launchWork {
             val (candidates, quality) = withContext(Dispatchers.Default) {
@@ -385,11 +403,6 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
                 _ui.value = UiState.Error(
                     "No clear insect song found in that file. Try a clip with steady, close calling."
                 )
-            } else if (res.signature.insectLikelihood < INSECT_THRESHOLD) {
-                _ui.value = UiState.Error(
-                    "That recording didn't sound like a singing insect. Voices, music, wind " +
-                        "and traffic can't be identified — try a clear cricket, katydid or cicada call."
-                )
             } else {
                 val evidence = withContext(Dispatchers.IO) {
                     EvidenceAudioStore.writeTemp(
@@ -453,37 +466,22 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
             unknownLabel = "Unknown_or_unsupported",
             minimumConfidence = 1.0,
             minimumMargin = 1.0,
-            reliabilityByLabel = emptyMap()
+            reliabilityByLabel = emptyMap(),
+            openSetSafetyPolicy = OpenSetSafetyPolicy.conservativeFallback()
         )
-        val secondOutput = rankedOutputs.getOrNull(1)
-        val margin = topOutput.audioConfidence - (secondOutput?.audioConfidence ?: 0.0)
-        val topIsUnknown = topOutput.label == policy.unknownLabel || topOutput.isUnknown
-        val passesThresholds = topOutput.audioConfidence >= policy.minimumConfidence &&
-            margin >= policy.minimumMargin
-        val topTier = policy.reliabilityByLabel[topOutput.label]?.tier ?: topOutput.reliability.tier
-        val qualityBlock = rawResult.recordingQuality?.blockingReason
-
-        val decision = when {
-            qualityBlock != null -> IdentificationDecision.NO_CONFIDENT_MATCH
-            topIsUnknown || !passesThresholds -> IdentificationDecision.NO_CONFIDENT_MATCH
-            topTier == ReliabilityTier.VERIFIED -> IdentificationDecision.IDENTIFIED
-            else -> IdentificationDecision.POSSIBLE_MATCH
+        val gate = OpenSetDecision.evaluate(
+            top = topOutput,
+            runnerUp = rankedOutputs.getOrNull(1),
+            signature = rawResult.signature,
+            recordingQuality = rawResult.recordingQuality,
+            policy = policy
+        )
+        val decision = when (gate.type) {
+            OpenSetDecisionType.STRONG_POSSIBLE -> IdentificationDecision.IDENTIFIED
+            OpenSetDecisionType.POSSIBLE -> IdentificationDecision.POSSIBLE_MATCH
+            OpenSetDecisionType.REJECTED -> IdentificationDecision.NO_CONFIDENT_MATCH
         }
-        val reason = when {
-            qualityBlock != null -> qualityBlock
-            topIsUnknown ->
-                "The model favored Unknown/Unsupported, so it is not assigning a species."
-            topOutput.audioConfidence < policy.minimumConfidence ->
-                "The best audio score did not meet the model's calibrated confidence threshold."
-            margin < policy.minimumMargin ->
-                "The two leading audio outputs were too close for a confident species match."
-            topTier == ReliabilityTier.VERIFIED ->
-                "Verified tier: stronger V50 locked-holdout support. This remains an acoustic estimate, not scientific confirmation."
-            topTier == ReliabilityTier.GOOD ->
-                "Good tier: promising V50 evaluation support, but not enough for the app's direct-identification tier. Treat it as a possible match."
-            else ->
-                "Experimental tier: limited or uneven evaluation support. Treat it as a possible acoustic match and compare the field guide."
-        }
+        val reason = gate.reason
 
         val contextSnapshot = contextOverride ?: environment.value
         val baseResult = rawResult.copy(
@@ -491,9 +489,11 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
             decisionReason = reason,
             modelTopLabel = topOutput.label,
             modelTopConfidence = topOutput.audioConfidence,
-            modelMargin = margin,
-            requiredConfidence = policy.minimumConfidence,
-            requiredMargin = policy.minimumMargin,
+            modelMargin = gate.margin,
+            requiredConfidence = gate.requiredConfidence,
+            requiredMargin = gate.requiredMargin,
+            acousticCheckPassed = gate.acousticCheck.passed,
+            acousticCheckSummary = gate.acousticCheck.summary,
             allAudioCandidates = rankedOutputs
         )
         val result = reapplyContext(baseResult, contextSnapshot)
@@ -710,7 +710,8 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
         super.onCleared()
     }
 
-    companion object {
-        const val INSECT_THRESHOLD = 0.55
+
+    private companion object {
+        const val CONTEXT_REFRESH_POLL_MILLIS = 60_000L
     }
 }

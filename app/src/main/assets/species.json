@@ -294,13 +294,13 @@
         10,
         20
       ],
-      "freqKHz": 3.8,
+      "freqKHz": 7.0,
       "freqRange": [
-        3.0,
-        5.0
+        6.0,
+        8.0
       ],
       "pulseRate": null,
-      "callType": "Trill/chirp",
+      "callType": "Five-pulse musical chirps",
       "tempSensitive": true,
       "months": [
         0,
@@ -320,12 +320,12 @@
       "habitat": "Grass & shrubs",
       "range": "North America",
       "blurb": "Columbian Trig (Cyrtoxipha columbiana) is a North American cricket included in Stridulate's trained model.",
-      "songDesc": "A trilling or chirping song typical of crickets.",
+      "songDesc": "A soft, pulsating series of musical chirps. Each chirp has about five pulses near 7 kHz; nearby males may form a synchronized throb.",
       "signature": {
-        "freqKHz": 3.8,
+        "freqKHz": 7.0,
         "pulseRate": null,
         "broadband": false,
-        "pulseRegularity": 0.55,
+        "pulseRegularity": 0.7,
         "bandwidthKHz": 2.0
       }
     },
@@ -1281,13 +1281,13 @@
         20,
         60
       ],
-      "freqKHz": 8.0,
+      "freqKHz": 9.0,
       "freqRange": [
-        5.0,
-        15.0
+        7.5,
+        11.5
       ],
       "pulseRate": null,
-      "callType": "Raspy song",
+      "callType": "Accelerating ticks / staccato dzt",
       "tempSensitive": false,
       "months": [
         0,
@@ -1307,13 +1307,13 @@
       "habitat": "Trees & shrubs",
       "range": "North America",
       "blurb": "Greater Angle-wing Katydid (Microcentrum rhombifolium) is a North American katydid included in Stridulate's trained model.",
-      "songDesc": "A raspy, repetitive song produced by wing stridulation.",
+      "songDesc": "A rapid series of high-pitched ticks that accelerates, or an isolated staccato dzt around 9 kHz every few seconds.",
       "signature": {
-        "freqKHz": 8.0,
+        "freqKHz": 9.0,
         "pulseRate": null,
         "broadband": true,
         "pulseRegularity": 0.35,
-        "bandwidthKHz": 10.0
+        "bandwidthKHz": 5.0
       }
     },
     {

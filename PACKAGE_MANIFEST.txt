@@ -1,0 +1,27 @@
+STRIDULATE GITHUB PACKAGE v2.3.2
+=================================
+
+Status: Work in progress / proof of concept
+Android version: 2.3.2 (version code 12)
+Model: Epoch 19, 67 outputs, research-only
+
+Package checks completed:
+- Offline project/model verification: PASS
+- Open-set regression scenarios: PASS
+- Location refresh cannot block recording: PASS
+- Gradle wrapper JAR structure: PASS
+- ZIP integrity: checked after packaging
+
+Location behavior:
+- Pressing Record starts the microphone immediately.
+- Optional context is checked in the background.
+- Network/location I/O occurs only after the 10-minute freshness window expires.
+- Manual Refresh now remains available.
+
+Model SHA-256:
+395ba28333005261956edc3fd5366e8b14f57dbe3d3cb14d40ba6ea2da0afccf
+
+Build note:
+A full Gradle Android build could not run in the packaging environment because the Gradle
+8.9 distribution and Android SDK were not available offline. BUILD_DEBUG_APK.bat and GitHub
+Actions are included for the real build.

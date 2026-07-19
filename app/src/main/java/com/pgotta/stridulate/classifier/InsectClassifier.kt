@@ -2,6 +2,7 @@ package com.pgotta.stridulate.classifier
 
 import com.pgotta.stridulate.audio.MeasuredSignature
 import com.pgotta.stridulate.data.ReliabilityInfo
+import com.pgotta.stridulate.data.OpenSetSafetyPolicy
 import com.pgotta.stridulate.data.ReliabilityTier
 import com.pgotta.stridulate.data.Species
 
@@ -22,12 +23,13 @@ data class Candidate(
     val audioConfidence: Double get() = confidence
 }
 
-/** Calibrated decision rules and V50 evaluation tiers shipped with the active model. */
+/** Calibrated decision rules and per-species evaluation tiers shipped with the active model. */
 data class ClassificationPolicy(
     val unknownLabel: String,
     val minimumConfidence: Double,
     val minimumMargin: Double,
-    val reliabilityByLabel: Map<String, ReliabilityInfo>
+    val reliabilityByLabel: Map<String, ReliabilityInfo>,
+    val openSetSafetyPolicy: OpenSetSafetyPolicy
 ) {
     val verifiedLabels: Set<String>
         get() = reliabilityByLabel.filterValues { it.tier == ReliabilityTier.VERIFIED }.keys

@@ -4,9 +4,9 @@ import kotlin.math.exp
 import kotlin.math.sqrt
 
 /**
- * The acoustic fingerprint measured from a recording. This is the exact set of
- * features the classifier scores against species signatures — the same ones that
- * tested at ~95% top-1 in the prototype.
+ * A compact acoustic signature used for recording-quality checks and explanatory
+ * measurements in the UI. Species identification itself is performed by the
+ * calibrated TensorFlow Lite model from the original PCM audio.
  */
 data class MeasuredSignature(
     val peakFreqKHz: Double,
@@ -24,7 +24,8 @@ data class MeasuredSignature(
      * A rough 0..1 estimate of "does this sound like a singing insect at all?"
      * Insects: strong tonal/structured energy, dominant freq usually >=2.5 kHz,
      * a steady peak, little low-frequency (speech) energy. Human voice, fans, and
-     * general noise score low here so we can decline instead of forcing a match.
+     * general noise score low. This diagnostic value is not used as the release
+     * identification gate; the trained Unknown/background class performs that job.
      */
     val insectLikelihood: Double
         get() {
