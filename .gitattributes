@@ -1,4 +1,11 @@
 * text=auto eol=lf
+
+# Preserve the exact locked model-support asset bytes.
+# The verifier hashes these files, so Git must not normalize CRLF/LF.
+app/src/main/assets/labels.txt binary
+app/src/main/assets/model_meta.json binary
+app/src/main/assets/normalization.json binary
+
 *.png binary
 *.jpg binary
 *.jpeg binary
