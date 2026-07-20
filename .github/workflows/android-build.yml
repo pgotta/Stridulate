@@ -23,7 +23,7 @@ jobs:
           python-version: "3.12"
 
       - name: Verify model and project contracts
-        run: python verification/verify_project.py
+        run: python verification/verify_ci.py
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
