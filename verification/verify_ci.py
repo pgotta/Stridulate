@@ -12,6 +12,7 @@ from pathlib import Path
 
 import verify_project as verifier
 
+# Exact GitHub checkout hashes for the normalized text assets.
 LABELS_FILE_SHA256 = "4d84fc646d4be232a911ebb9e7a81d7fffb851dc93637d180dca5966055da637"
 METADATA_FILE_SHA256 = "8b865a318b5e34e378acf20b815720ae76eccd277cc8277733023ba1b6796a00"
 NORMALIZATION_FILE_SHA256 = "434d7c9ba08a1679c2ffe3c510fe07bf3c557823f5bec247493ffa96e1998ee0"
