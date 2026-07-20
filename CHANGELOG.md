@@ -2,6 +2,7 @@
 
 ## 2.3.2 — GitHub proof-of-concept bundle and non-blocking context
 
+- Added five current Android screenshots to `docs/screenshots` and a README gallery for GitHub.
 - Marked the repository clearly as a work-in-progress proof of concept rather than a finished identification product.
 - Removed the pre-record location/weather wait: pressing Record now starts the microphone immediately.
 - Moved optional device/manual context refresh to an independent background scheduler.

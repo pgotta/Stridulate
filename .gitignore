@@ -46,6 +46,3 @@ __pycache__/
 # Temporary files
 *.tmp
 *.log
-
-# Windows batch helper scripts
-*.bat

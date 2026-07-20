@@ -6,6 +6,7 @@ Android version: 2.3.2 (version code 12)
 Model: Epoch 19, 67 outputs, research-only
 
 Package checks completed:
+- Five metadata-stripped app screenshots included under docs/screenshots
 - Offline project/model verification: PASS
 - Open-set regression scenarios: PASS
 - Location refresh cannot block recording: PASS

@@ -5,13 +5,8 @@ This repository is buildable Android source, but the classifier is not yet a dep
 field-identification product. Expect false matches and No confident match results.
 
 QUICK BUILD
-1. Open this repository in Android Studio.
-2. Allow Gradle sync to finish.
-3. Choose Build -> Build APK(s).
-4. Install app\build\outputs\apk\debug\app-debug.apk.
-
-GitHub Actions also verifies the model contract and builds a downloadable debug APK
-after each push to main. Custom Windows .bat helpers are intentionally excluded from Git.
+1. Double-click BUILD_DEBUG_APK.bat
+2. Install app\build\outputs\apk\debug\app-debug.apk
 
 LOCATION / WEATHER
 Optional context refreshes in the background every ten minutes. Pressing Record starts the
