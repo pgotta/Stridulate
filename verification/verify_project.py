@@ -285,7 +285,6 @@ def main() -> int:
         ROOT / "MODEL_EPOCH19_AUDIT.md",
         ROOT / "gradle/wrapper/gradle-wrapper.jar",
         ROOT / "gradlew",
-        ROOT / "gradlew.bat",
         ROOT / "COMMUNITY_IDENTIFICATION.md",
         ROOT / ".github/ISSUE_TEMPLATE/community-identification.md",
         ROOT / ".github/workflows/community-identification-sync.yml",

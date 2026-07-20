@@ -25,14 +25,14 @@ Run from the project root:
 python verification/verify_project.py
 ```
 
-The same verifier also checks the existing observation-context, privacy, recording-quality, reference-playback, community-review, iNaturalist and GitHub-contribution workflows. It specifically verifies that recording starts before any stale-context refresh and that optional context refresh runs independently.
+The verifier also checks the observation-context, privacy, recording-quality, reference-playback, community-review, iNaturalist and GitHub-contribution workflows. It verifies that recording starts before any stale-context refresh and that optional context refresh runs independently.
 
 ## Build verification
 
-Open the project in Android Studio and allow Gradle sync to finish, then use **Build → Build APK(s)**. A convenience `BUILD_DEBUG_APK.bat` is included for Windows after Android Studio and its SDK are installed.
+See [`BUILD.md`](BUILD.md).
 
-This packaging environment could not run Gradle because external downloads and an Android SDK were unavailable. The offline project verifier and targeted Kotlin compilation checks passed before packaging.
+The repository intentionally contains no `.bat` files. Android Studio is the recommended Windows build method. GitHub Actions uses the Unix `gradlew` wrapper and publishes a debug APK artifact.
 
-## Model license
+## Licensing
 
-The bundled model is research-only because the training pool includes noncommercial source licenses. Do not use this model in a monetized release without a commercially compatible retraining pool.
+The original source code and documentation are MIT licensed. The current bundled model remains research-only because its training pool includes noncommercial source licenses. See `MODEL_AND_ASSET_LICENSES.md`.

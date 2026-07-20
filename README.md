@@ -14,13 +14,13 @@ Stridulate listens to recordings of crickets, katydids, cicadas, and related sin
 ## Screenshots
 
 <p align="center">
-  <img src="docs/screenshots/home.jpg" alt="Stridulate home screen with optional observation context" width="30%" />
-  <img src="docs/screenshots/field-guide.jpg" alt="Stridulate searchable field guide" width="30%" />
-  <img src="docs/screenshots/species-detail.jpg" alt="Fall Field Cricket species detail and reference recording" width="30%" />
+  <img src="docs/screenshots/home.svg" alt="Stridulate home screen with optional observation context" width="30%" />
+  <img src="docs/screenshots/field-guide.svg" alt="Stridulate searchable field guide" width="30%" />
+  <img src="docs/screenshots/species-detail.svg" alt="Fall Field Cricket species detail and reference recording" width="30%" />
 </p>
 <p align="center">
-  <img src="docs/screenshots/listening.jpg" alt="Stridulate live listening and spectrogram screen" width="30%" />
-  <img src="docs/screenshots/result.jpg" alt="Stridulate possible-match result with reliability details" width="30%" />
+  <img src="docs/screenshots/listening.svg" alt="Stridulate live listening and spectrogram screen" width="30%" />
+  <img src="docs/screenshots/result.svg" alt="Stridulate possible-match result with reliability details" width="30%" />
 </p>
 
 From left to right: Home and observation context, searchable field guide, species details, live recording, and a model result with reliability information.
@@ -377,42 +377,11 @@ verification/
 └── FINAL_VERIFICATION.txt
 ```
 
-## Build requirements
+## Building the app
 
-- Android Studio with Android SDK 34
-- JDK 17
-- Android 8.0 / API 26 or newer device
-- Internet access for initial Gradle dependency resolution
+Complete requirements and build instructions are in [`BUILD.md`](BUILD.md).
 
-### Build in Android Studio
-
-1. Clone the repository.
-2. Open the repository root in Android Studio.
-3. Allow Gradle sync to complete.
-4. Select an Android 8.0+ device or emulator.
-5. Run the `app` configuration.
-
-### Build from the command line
-
-On macOS/Linux:
-
-```bash
-./gradlew assembleDebug
-```
-
-On Windows:
-
-```powershell
-.\gradlew.bat assembleDebug
-```
-
-The debug APK will normally be written to:
-
-```text
-app/build/outputs/apk/debug/app-debug.apk
-```
-
-Do not commit `local.properties`; Android Studio generates it for the local SDK path. `local.properties.SAMPLE` is included only as a reference.
+The repository intentionally contains **no Windows `.bat` files**. On Windows, build through Android Studio. GitHub Actions builds with the Unix `gradlew` wrapper and publishes the debug APK as a workflow artifact.
 
 ## Large model file
 
@@ -538,9 +507,11 @@ Do not add copyrighted recordings or datasets without clear redistribution permi
 
 ## License
 
-A project license has not yet been selected. Before presenting this repository as open source or accepting external code contributions, add a license that is compatible with the app source, model, training recordings, images, and any bundled biological data.
+The original Stridulate source code and project documentation are licensed under the **MIT License**. See [`LICENSE`](LICENSE).
 
-Until a license is added, normal copyright applies and reuse rights are not automatically granted.
+The MIT License permits use, copying, modification, distribution, sublicensing, and commercial use of the code.
+
+The bundled model weights and third-party media are **not automatically relicensed under MIT**. Their separate terms are documented in [`MODEL_AND_ASSET_LICENSES.md`](MODEL_AND_ASSET_LICENSES.md). The current epoch-19 model remains research-only because its training pool includes noncommercially licensed source recordings.
 
 ## Disclaimer
 

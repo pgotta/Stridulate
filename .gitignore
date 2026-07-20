@@ -46,3 +46,6 @@ __pycache__/
 # Temporary files
 *.tmp
 *.log
+
+# Keep every Windows batch script out of the public repository
+*.bat
