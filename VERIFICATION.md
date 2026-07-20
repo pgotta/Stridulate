@@ -29,7 +29,7 @@ The same verifier also checks the existing observation-context, privacy, recordi
 
 ## Build verification
 
-Open the project in Android Studio and allow Gradle sync to finish, then use **Build → Build APK(s)**. A convenience `BUILD_DEBUG_APK.bat` is included for Windows after Android Studio and its SDK are installed.
+Open the project in Android Studio and allow Gradle sync to finish, then use **Build → Build APK(s)**. GitHub Actions also runs the verifier and builds a debug APK after each push. Custom Windows `.bat` helper files are intentionally excluded from the public repository.
 
 This packaging environment could not run Gradle because external downloads and an Android SDK were unavailable. The offline project verifier and targeted Kotlin compilation checks passed before packaging.
 
