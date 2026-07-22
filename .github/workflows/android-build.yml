@@ -27,6 +27,23 @@ jobs:
           exec > >(tee apply-diagnostics.txt) 2>&1
           set -euo pipefail
           if [ -d .github/patch-v25 ]; then
+            python - <<'PY'
+          from hashlib import sha256
+          from pathlib import Path
+
+          path = Path('.github/patch-v25/part00')
+          data = bytearray(path.read_bytes())
+          if sha256(data).hexdigest() == '93227a3e0b598e003ac500c78d4f13c4ab80e10228c1b95955e71e0ab0e4d8ba':
+              print('part00 already has the expected checksum')
+          else:
+              assert len(data) == 18000
+              assert data[15093] == ord('W'), f'unexpected byte at correction point: {data[15093]!r}'
+              data[15093] = ord('V')
+              actual = sha256(data).hexdigest()
+              assert actual == '93227a3e0b598e003ac500c78d4f13c4ab80e10228c1b95955e71e0ab0e4d8ba', actual
+              path.write_bytes(data)
+              print('Corrected the single altered byte in part00')
+          PY
             echo "Selected patch sizes and hashes:"
             wc -c \
               .github/patch-v25/part00 \
