@@ -27,8 +27,14 @@ jobs:
           exec > >(tee apply-diagnostics.txt) 2>&1
           set -euo pipefail
           if [ -d .github/patch-v25 ]; then
-            echo "Selected patch parts:"
+            echo "Selected patch sizes and hashes:"
             wc -c \
+              .github/patch-v25/part00 \
+              .github/patch-v25/part01 \
+              .github/patch-v25/part02 \
+              .github/patch-v25/part03-fixed \
+              .github/patch-v25/part04
+            sha256sum \
               .github/patch-v25/part00 \
               .github/patch-v25/part01 \
               .github/patch-v25/part02 \
