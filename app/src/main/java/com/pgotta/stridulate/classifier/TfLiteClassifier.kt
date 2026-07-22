@@ -60,7 +60,7 @@ class TfLiteClassifier(
     val datasetName: String get() = metadata.dataset
 
     init {
-        require(sha256(labelBytes).equals(metadata.labelsSha256, ignoreCase = true)) {
+        require(labelsChecksumMatches(labelBytes, metadata.labelsSha256)) {
             "labels.txt does not match the active model metadata checksum."
         }
         require(kotlin.math.abs(normalizationFile.getDouble("mel_mean") - metadata.normalizationMean) < 1e-12 &&
@@ -230,6 +230,23 @@ class TfLiteClassifier(
         } finally {
             executor.shutdownNow()
         }
+    }
+
+    /**
+     * Git may materialize text assets with LF or CRLF line endings. The model
+     * metadata checksum was produced from the original CRLF labels file, so
+     * compare the exact bytes first and then the two newline-only variants.
+     * No label text, ordering, whitespace, or blank lines are otherwise changed.
+     */
+    private fun labelsChecksumMatches(bytes: ByteArray, expected: String): Boolean {
+        val text = bytes.toString(Charsets.UTF_8)
+        val lf = text.replace("\r\n", "\n").replace('\r', '\n')
+        val candidates = listOf(
+            bytes,
+            lf.toByteArray(Charsets.UTF_8),
+            lf.replace("\n", "\r\n").toByteArray(Charsets.UTF_8)
+        )
+        return candidates.any { sha256(it).equals(expected, ignoreCase = true) }
     }
 
     private fun sha256(bytes: ByteArray): String =
