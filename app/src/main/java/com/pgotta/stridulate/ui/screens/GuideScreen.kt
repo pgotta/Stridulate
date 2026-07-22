@@ -48,7 +48,7 @@ fun GuideScreen(
     onPlay: (Species) -> Unit,
     onStopPlayback: () -> Unit
 ) {
-    // A reference recording belongs to this detail screen. This also cancels a
+    // A taxon-matched community recording belongs to this detail screen. This also cancels a
     // pending network lookup, preventing it from starting after navigation.
     DisposableEffect(sp.id) {
         onDispose(onStopPlayback)
@@ -184,7 +184,7 @@ fun GuideScreen(
         val guideBlurb = if (sp.blurb.contains("included in Stridulate's trained model")) {
             "${sp.common} is a ${sp.group} in the ${sp.familyLatin} family. It is associated with " +
                 "${sp.habitat.lowercase()}. Confirm a possible identification with the call pattern, " +
-                "season, broad range and a clear reference recording."
+                "season, broad range and more than one taxon-matched community recording."
         } else sp.blurb
         Text(guideBlurb, fontFamily = Inter, fontSize = 14.5.sp, color = ParchDim, lineHeight = 21.sp)
 
@@ -203,6 +203,14 @@ fun GuideScreen(
         ) { ProceduralSpectrogram(sp.group, Modifier.fillMaxSize()) }
         Spacer(Modifier.height(9.dp))
         Text(sp.songDesc, fontFamily = JetBrainsMono, fontSize = 12.sp, color = ParchDim, lineHeight = 18.sp)
+        Text(
+            "Online community audio is not curated and may contain wind, speech, traffic or other callers. Tap again to cycle through another taxon-matched recording.",
+            fontFamily = Inter,
+            fontSize = 11.sp,
+            color = Mute,
+            lineHeight = 16.sp,
+            modifier = Modifier.padding(top = 7.dp)
+        )
 
         Spacer(Modifier.height(22.dp))
         Eyebrow2("Call signature")
@@ -323,7 +331,7 @@ fun GuideScreen(
         Eyebrow2("How to confirm")
         Spacer(Modifier.height(8.dp))
         Text(
-            "Compare the rhythm and dominant pitch against the reference recording, check that the month and broad range make sense, and listen for more than one clean phrase. Overlapping callers, wind and phone microphone distance can all change the model score.",
+            "Compare the rhythm and dominant pitch across more than one taxon-matched community recording, check that the month and broad range make sense, and listen for more than one clean phrase. Overlapping callers, wind and phone microphone distance can all change the model score.",
             fontFamily = Inter,
             fontSize = 13.sp,
             color = ParchDim,
@@ -411,8 +419,8 @@ private fun PlayerRow(sp: Species, onPlay: (Species) -> Unit) {
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text("Play reference recording", fontFamily = Inter, fontSize = 13.5.sp, color = Parch)
-            Text("COMPARE RHYTHM + PITCH", fontFamily = JetBrainsMono, fontSize = 8.5.sp, color = Mute)
+            Text("Play community recording", fontFamily = Inter, fontSize = 13.5.sp, color = Parch)
+            Text("TAP AGAIN FOR ANOTHER · NOT CURATED", fontFamily = JetBrainsMono, fontSize = 8.5.sp, color = Mute)
         }
         Text("ONLINE", fontFamily = JetBrainsMono, fontSize = 9.sp, color = Mute)
     }

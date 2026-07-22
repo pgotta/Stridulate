@@ -2,6 +2,7 @@ package com.pgotta.stridulate.log
 
 import android.content.Context
 import com.pgotta.stridulate.community.EvidenceAudioStore
+import com.pgotta.stridulate.environment.ObservationContext
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,7 +31,13 @@ data class DetectionLogSession(
     val audioFilePath: String,
     val sampleRate: Int,
     val durationSeconds: Double,
-    val detections: List<LoggedSpeciesDetection>
+    val detections: List<LoggedSpeciesDetection>,
+    val locationLabel: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val region: String? = null,
+    val temperatureF: Double? = null,
+    val weatherObservedAtMillis: Long? = null
 )
 
 /** Persistent recording log. Audio and metadata remain private in app storage. */
@@ -45,12 +52,14 @@ class DetectionLogRepository(private val context: Context) {
 
     fun newRawCaptureFile(): File = File(tempDir, "capture-${UUID.randomUUID()}.pcm")
 
+    @Synchronized
     fun saveSession(
         startedAtMillis: Long,
         endedAtMillis: Long,
         rawPcmFile: File?,
         sampleRate: Int,
-        detections: List<LoggedSpeciesDetection>
+        detections: List<LoggedSpeciesDetection>,
+        observationContext: ObservationContext
     ): DetectionLogSession? {
         if (rawPcmFile == null || !rawPcmFile.exists() || rawPcmFile.length() <= 0L) return null
         val id = "log-${startedAtMillis}-${UUID.randomUUID().toString().take(8)}"
@@ -65,7 +74,13 @@ class DetectionLogRepository(private val context: Context) {
             audioFilePath = wav.absolutePath,
             sampleRate = sampleRate,
             durationSeconds = duration,
-            detections = detections
+            detections = detections,
+            locationLabel = observationContext.locationLabel,
+            latitude = observationContext.latitude,
+            longitude = observationContext.longitude,
+            region = observationContext.region.displayName.takeUnless { it == "Region unavailable" },
+            temperatureF = observationContext.temperatureF,
+            weatherObservedAtMillis = observationContext.temperatureObservedAtMillis
         )
         _sessions.value = (listOf(session) + _sessions.value).take(MAX_SESSIONS)
         persist()
@@ -73,6 +88,16 @@ class DetectionLogRepository(private val context: Context) {
         return session
     }
 
+    @Synchronized
+    fun delete(sessionId: String): Boolean {
+        val target = _sessions.value.firstOrNull { it.id == sessionId } ?: return false
+        runCatching { File(target.audioFilePath).delete() }
+        _sessions.value = _sessions.value.filterNot { it.id == sessionId }
+        persist()
+        return true
+    }
+
+    @Synchronized
     fun clear() {
         _sessions.value.forEach { runCatching { File(it.audioFilePath).delete() } }
         _sessions.value = emptyList()
@@ -116,12 +141,21 @@ class DetectionLogRepository(private val context: Context) {
                     .put("sample_rate", session.sampleRate)
                     .put("duration", session.durationSeconds)
                     .put("detections", detections)
+                    .putNullable("location_label", session.locationLabel)
+                    .putNullable("latitude", session.latitude)
+                    .putNullable("longitude", session.longitude)
+                    .putNullable("region", session.region)
+                    .putNullable("temperature_f", session.temperatureF)
+                    .putNullable("weather_observed_at", session.weatherObservedAtMillis)
             )
         }
         val temp = File(root, "index.tmp")
-        temp.writeText(JSONObject().put("schema", 1).put("sessions", array).toString())
+        temp.writeText(JSONObject().put("schema", 2).put("sessions", array).toString())
         if (indexFile.exists()) indexFile.delete()
-        temp.renameTo(indexFile)
+        if (!temp.renameTo(indexFile)) {
+            temp.copyTo(indexFile, overwrite = true)
+            temp.delete()
+        }
     }
 
     private fun load(): List<DetectionLogSession> = runCatching {
@@ -169,12 +203,31 @@ class DetectionLogRepository(private val context: Context) {
                         audioFilePath = audio,
                         sampleRate = item.optInt("sample_rate", 48_000),
                         durationSeconds = item.optDouble("duration", 0.0),
-                        detections = detections
+                        detections = detections,
+                        locationLabel = item.optNullableString("location_label"),
+                        latitude = item.optNullableDouble("latitude"),
+                        longitude = item.optNullableDouble("longitude"),
+                        region = item.optNullableString("region"),
+                        temperatureF = item.optNullableDouble("temperature_f"),
+                        weatherObservedAtMillis = item.optNullableLong("weather_observed_at")
                     )
                 )
             }
         }
     }.getOrDefault(emptyList())
+
+    private fun JSONObject.putNullable(key: String, value: Any?): JSONObject = apply {
+        put(key, value ?: JSONObject.NULL)
+    }
+
+    private fun JSONObject.optNullableString(key: String): String? =
+        if (!has(key) || isNull(key)) null else optString(key).takeIf(String::isNotBlank)
+
+    private fun JSONObject.optNullableDouble(key: String): Double? =
+        if (!has(key) || isNull(key)) null else optDouble(key).takeIf(Double::isFinite)
+
+    private fun JSONObject.optNullableLong(key: String): Long? =
+        if (!has(key) || isNull(key)) null else optLong(key)
 
     companion object {
         private const val MAX_SESSIONS = 100

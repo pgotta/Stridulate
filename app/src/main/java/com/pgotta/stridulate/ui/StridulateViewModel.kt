@@ -9,6 +9,7 @@ import com.pgotta.stridulate.audio.ClipAnalyzer
 import com.pgotta.stridulate.audio.FeatureExtractor
 import com.pgotta.stridulate.audio.MeasuredSignature
 import com.pgotta.stridulate.audio.MicRecorder
+import com.pgotta.stridulate.audio.RecordedSegmentPlayer
 import com.pgotta.stridulate.audio.ReferenceSoundPlayer
 import com.pgotta.stridulate.audio.RecordingQuality
 import com.pgotta.stridulate.classifier.Candidate
@@ -36,6 +37,7 @@ import com.pgotta.stridulate.environment.ContextProfileRepository
 import com.pgotta.stridulate.environment.ContextReranker
 import com.pgotta.stridulate.environment.EnvironmentRepository
 import com.pgotta.stridulate.environment.ObservationContext
+import com.pgotta.stridulate.environment.SpeciesContextProfile
 import com.pgotta.stridulate.log.DetectionLogRepository
 import com.pgotta.stridulate.log.DetectionLogSession
 import com.pgotta.stridulate.log.DetectionOccurrence
@@ -160,6 +162,12 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
 
     fun contextCoverageFor(species: Species): String? =
         contextProfiles.forLabel(modelLabel(species))?.coverageNote
+
+    fun contextProfileFor(species: Species): SpeciesContextProfile? =
+        contextProfiles.forLabel(modelLabel(species))
+
+    fun supportsRegion(species: Species, region: com.pgotta.stridulate.environment.ContextRegion): Boolean =
+        contextProfiles.supportsRegion(modelLabel(species), region)
 
     private val unavailableClassifier = object : InsectClassifier {
         override fun classify(signature: MeasuredSignature): List<Candidate> = emptyList()
@@ -425,7 +433,8 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
                     endedAtMillis = ended,
                     rawPcmFile = rawFile,
                     sampleRate = mic.sampleRate,
-                    detections = detections
+                    detections = detections,
+                    observationContext = environment.value
                 )
             }
             _recordingElapsedSeconds.value = 0.0
@@ -758,6 +767,47 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun updateCommunityNote(recordId: String, note: String) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { communityRepository.updateNote(recordId, note) }
+            _communityNotice.value = "Review note saved."
+        }
+    }
+
+    fun deleteLogSession(sessionId: String) {
+        viewModelScope.launch {
+            RecordedSegmentPlayer.stop()
+            val deleted = withContext(Dispatchers.IO) { detectionLogRepository.delete(sessionId) }
+            if (!deleted) _communityNotice.value = "That Log recording was already removed."
+        }
+    }
+
+    fun moveLogSessionToUnknowns(sessionId: String) {
+        val session = logSessions.value.firstOrNull { it.id == sessionId }
+        if (session == null) {
+            _communityNotice.value = "That Log recording was not found."
+            return
+        }
+        viewModelScope.launch {
+            _communityBusy.value = "Moving recording into Unknowns…"
+            try {
+                RecordedSegmentPlayer.stop()
+                val record = withContext(Dispatchers.IO) {
+                    communityRepository.importLogSession(session, repo::byId).also {
+                        check(detectionLogRepository.delete(sessionId)) {
+                            "The recording was copied to Unknowns, but could not be removed from Log."
+                        }
+                    }
+                }
+                _communityNotice.value = "Moved ${record.id} to Unknowns. Open it to listen, add notes, or share it for identification."
+            } catch (e: Exception) {
+                _communityNotice.value = e.message ?: "Could not move the recording to Unknowns."
+            } finally {
+                _communityBusy.value = null
+            }
+        }
+    }
+
     fun showCommunityNotice(message: String) {
         _communityNotice.value = message
     }
@@ -771,7 +821,10 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun clearSession() {
-        detectionLogRepository.clear()
+        viewModelScope.launch {
+            RecordedSegmentPlayer.stop()
+            withContext(Dispatchers.IO) { detectionLogRepository.clear() }
+        }
     }
 
     fun setTierEnabled(tier: com.pgotta.stridulate.data.ReliabilityTier, enabled: Boolean) {

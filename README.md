@@ -16,7 +16,7 @@ Stridulate listens to recordings of crickets, katydids, cicadas, and related sin
 <p align="center">
   <img src="docs/screenshots/home.jpg" alt="Stridulate home screen with optional observation context" width="30%" />
   <img src="docs/screenshots/field-guide.jpg" alt="Stridulate searchable field guide" width="30%" />
-  <img src="docs/screenshots/species-detail.jpg" alt="Fall Field Cricket species detail and reference recording" width="30%" />
+  <img src="docs/screenshots/species-detail.jpg" alt="Fall Field Cricket species detail and taxon-matched community recording" width="30%" />
 </p>
 <p align="center">
   <img src="docs/screenshots/listening.jpg" alt="Stridulate live listening and spectrogram screen" width="30%" />
@@ -163,7 +163,7 @@ Classes with useful evaluation performance and a reasonable amount of supporting
 
 ### Experimental
 
-Classes with limited recordings, inconsistent evaluation performance, challenging look-alikes, or incomplete geographic coverage. These are useful suggestions that should be checked carefully against the field guide and an independent reference recording.
+Classes with limited recordings, inconsistent evaluation performance, challenging look-alikes, or incomplete geographic coverage. These are useful suggestions that should be checked carefully against the field guide and an independent taxon-matched community recording.
 
 The current release contains:
 
