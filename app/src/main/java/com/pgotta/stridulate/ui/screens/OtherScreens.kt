@@ -311,7 +311,13 @@ private fun BrowseRow(sp: Species, reliability: ReliabilityInfo, onClick: () -> 
                 reliability.tier.displayName.uppercase(),
                 fontFamily = JetBrainsMono,
                 fontSize = 9.sp,
-                color = tierColor(reliability.tier),
+                color = when (reliability.tier) {
+                    ReliabilityTier.VERIFIED -> Biolume
+                    ReliabilityTier.GOOD -> AmberSoft
+                    ReliabilityTier.EXPERIMENTAL -> Amber
+                    ReliabilityTier.NOT_READY -> Danger
+                    ReliabilityTier.UNKNOWN_GATE -> Mute
+                },
                 letterSpacing = 0.5.sp
             )
         }
