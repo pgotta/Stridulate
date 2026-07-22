@@ -1,0 +1,22 @@
+name: Source snapshot v2.5
+
+on:
+  push:
+    branches: [log-unknowns-map]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stridulate-source-v25
+          path: |
+            .
+            !.git/**
+          include-hidden-files: true
+          retention-days: 1
