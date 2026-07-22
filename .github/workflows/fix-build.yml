@@ -1,0 +1,46 @@
+name: Apply compile fix
+
+on:
+  push:
+    branches: [live-log-images]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: live-log-images
+          fetch-depth: 0
+      - name: Fix field-guide tier color
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('app/src/main/java/com/pgotta/stridulate/ui/screens/OtherScreens.kt')
+          text = path.read_text(encoding='utf-8')
+          old = 'color = tierColor(reliability.tier),'
+          new = '''color = when (reliability.tier) {
+                              ReliabilityTier.VERIFIED -> Biolume
+                              ReliabilityTier.GOOD -> AmberSoft
+                              ReliabilityTier.EXPERIMENTAL -> Amber
+                              ReliabilityTier.NOT_READY -> Danger
+                              ReliabilityTier.UNKNOWN_GATE -> Mute
+                          },'''
+          if old not in text:
+              raise SystemExit('Expected tierColor call was not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+          rm -f .github/workflows/fix-build.yml
+      - name: Commit fix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Fix field-guide tier color compilation"
+          git push origin HEAD:live-log-images
