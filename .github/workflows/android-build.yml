@@ -7,46 +7,17 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   verify-and-build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out repository branch
+      - name: Check out repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref || github.ref_name }}
-          fetch-depth: 0
           show-progress: false
-
-      - name: Repair Kotlin multiline string
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path('app/src/main/java/com/pgotta/stridulate/ui/screens/OtherScreens.kt')
-          text = path.read_text(encoding='utf-8')
-          broken = '"No saved recordings yet.\nTap Listen to start rolling identification."'
-          fixed = '"No saved recordings yet.\\nTap Listen to start rolling identification."'
-          if fixed in text:
-              print('Kotlin string is already repaired')
-          elif broken in text:
-              path.write_text(text.replace(broken, fixed, 1), encoding='utf-8')
-              print('Repaired Kotlin multiline string')
-          else:
-              raise SystemExit('Expected Log empty-state text was not found')
-          PY
-          if ! git diff --quiet -- app/src/main/java/com/pgotta/stridulate/ui/screens/OtherScreens.kt; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add app/src/main/java/com/pgotta/stridulate/ui/screens/OtherScreens.kt
-            git commit -m "Fix Log empty-state Kotlin string"
-            git push origin HEAD:"${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
-          fi
 
       - name: Set up Python
         uses: actions/setup-python@v5
