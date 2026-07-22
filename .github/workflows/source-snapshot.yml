@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - live-log-images
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
