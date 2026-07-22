@@ -1,27 +1,42 @@
-name: Source snapshot
+name: Apply Stridulate feature patch
 
 on:
   push:
     branches:
       - live-log-images
-  pull_request:
-    branches:
-      - main
-  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
-  snapshot:
+  apply:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
+      - name: Check out feature branch
         uses: actions/checkout@v4
-
-      - name: Upload source snapshot
-        uses: actions/upload-artifact@v4
         with:
-          name: stridulate-source-snapshot
-          path: |
-            .
-            !.git/**
-          include-hidden-files: true
-          retention-days: 1
+          ref: live-log-images
+          fetch-depth: 0
+
+      - name: Decode and verify patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 --decode .github/stridulate-changes.b64 > /tmp/stridulate-changes.tar.gz
+          echo "a74ef347fbac37d6aefc647a46d53e49babae902cbc32bd5c61e2f2c8b3acac0  /tmp/stridulate-changes.tar.gz" | sha256sum --check --strict
+          tar -xzf /tmp/stridulate-changes.tar.gz
+          rm -f .github/stridulate-changes.b64 .github/workflows/source-snapshot.yml
+
+      - name: Verify project contracts
+        run: python verification/verify_ci.py
+
+      - name: Commit applied changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Add rolling detection log and cached species photos"
+          git push origin HEAD:live-log-images
