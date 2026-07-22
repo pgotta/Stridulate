@@ -45,6 +45,9 @@ jobs:
           set -o pipefail
           ./gradlew --no-daemon assembleDebug 2>&1 | tee gradle-build.log
 
+      - name: Verify packaged model assets
+        run: python verification/verify_apk_assets.py app/build/outputs/apk/debug/app-debug.apk
+
       - name: Upload Gradle build log
         if: always()
         uses: actions/upload-artifact@v4
