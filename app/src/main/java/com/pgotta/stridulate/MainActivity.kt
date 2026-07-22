@@ -17,10 +17,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.NightsStay
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.content.IntentCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.pgotta.stridulate.audio.RecordedSegmentPlayer
 import com.pgotta.stridulate.audio.ReferenceSoundPlayer
 import com.pgotta.stridulate.community.CommunityShare
 import com.pgotta.stridulate.ui.CommunityShareRequest
@@ -62,6 +63,7 @@ import com.pgotta.stridulate.ui.screens.ListenScreen
 import com.pgotta.stridulate.ui.screens.PacksScreen
 import com.pgotta.stridulate.ui.screens.ResultScreen
 import com.pgotta.stridulate.ui.screens.SessionScreen
+import com.pgotta.stridulate.ui.screens.SettingsScreen
 import com.pgotta.stridulate.ui.theme.Biolume
 import com.pgotta.stridulate.ui.theme.Ink
 import com.pgotta.stridulate.ui.theme.JetBrainsMono
@@ -98,6 +100,7 @@ class MainActivity : ComponentActivity() {
         // Reference audio is screen-scoped. Never keep it playing after the app
         // leaves the foreground, and cancel any recording that is still loading.
         ReferenceSoundPlayer.stop()
+        RecordedSegmentPlayer.stop()
         super.onStop()
     }
 
@@ -121,8 +124,10 @@ fun StridulateApp(
     val context = LocalContext.current
 
     val ui by vm.ui.collectAsState()
-    val session by vm.session.collectAsState()
-    val liveCand by vm.liveCandidate.collectAsState()
+    val liveDetections by vm.liveDetections.collectAsState()
+    val recordingElapsedSeconds by vm.recordingElapsedSeconds.collectAsState()
+    val logSessions by vm.logSessions.collectAsState()
+    val tierSettings by vm.tierSettings.collectAsState()
     val specCol by vm.spectrogramColumn.collectAsState()
     val loudness by vm.loudness.collectAsState()
     val observationContext by vm.environment.collectAsState()
@@ -135,6 +140,7 @@ fun StridulateApp(
     var guideId by rememberSaveable { mutableStateOf<String?>(null) }
     var communityRecordId by rememberSaveable { mutableStateOf<String?>(null) }
     var showPacks by rememberSaveable { mutableStateOf(false) }
+    var showSettings by rememberSaveable { mutableStateOf(false) }
     var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
     var pendingCurrentContextImportUri by remember { mutableStateOf<Uri?>(null) }
 
@@ -152,6 +158,7 @@ fun StridulateApp(
             guideId = null
             communityRecordId = null
             showPacks = false
+            showSettings = false
             tab = Tab.Home
             pendingImportUri = sharedUri
             onSharedUriConsumed()
@@ -272,7 +279,8 @@ fun StridulateApp(
         )
     }
 
-    val atRoot = ui is UiState.Idle && guideId == null && communityRecordId == null && !showPacks && tab == Tab.Home
+    val atRoot = ui is UiState.Idle && guideId == null && communityRecordId == null &&
+        !showPacks && !showSettings && tab == Tab.Home
     BackHandler(enabled = !atRoot) {
         // Covers Android system back for guide and result navigation.
         ReferenceSoundPlayer.stop()
@@ -284,6 +292,7 @@ fun StridulateApp(
             guideId != null -> guideId = null
             communityRecordId != null -> communityRecordId = null
             showPacks -> showPacks = false
+            showSettings -> showSettings = false
             tab != Tab.Home -> tab = Tab.Home
         }
     }
@@ -292,7 +301,7 @@ fun StridulateApp(
         containerColor = Ink,
         bottomBar = {
             val hide = ui is UiState.Listening || ui is UiState.Analyzing ||
-                ui is UiState.Result || guideId != null || communityRecordId != null || showPacks
+                ui is UiState.Result || guideId != null || communityRecordId != null || showPacks || showSettings
             if (!hide) {
                 BottomBar(tab) { picked ->
                     when (picked) {
@@ -300,8 +309,10 @@ fun StridulateApp(
                         else -> {
                             tab = picked
                             showPacks = false
+                            showSettings = false
                             guideId = null
                             communityRecordId = null
+                            if (picked == Tab.Guide) vm.prefetchFieldGuidePhotos()
                         }
                     }
                 }
@@ -318,8 +329,12 @@ fun StridulateApp(
                 is UiState.Listening -> ListenScreen(
                     spectrogramColumns = liveColumns.toList(),
                     loudness = loudness,
-                    liveCandidate = liveCand,
-                    onStop = { vm.stopAndIdentify() },
+                    detections = liveDetections,
+                    elapsedSeconds = recordingElapsedSeconds,
+                    onStop = {
+                        tab = Tab.Session
+                        vm.stopAndSaveLog()
+                    },
                     onCancel = { vm.cancelListening() }
                 )
                 is UiState.Analyzing -> AnalyzingScreen(s.label)
@@ -401,11 +416,16 @@ fun StridulateApp(
                                 guideId = null
                             }
                         }
+                        showSettings -> SettingsScreen(
+                            settings = tierSettings,
+                            onBack = { showSettings = false },
+                            onTierChanged = vm::setTierEnabled
+                        )
                         showPacks -> PacksScreen(vm.repo.packs) { showPacks = false }
                         else -> when (tab) {
                             Tab.Home -> HomeScreen(
                                 speciesCount = vm.tier1Species.size,
-                                sessionCount = session.map { it.species.id }.toSet().size,
+                                sessionCount = logSessions.flatMap { it.detections }.map { it.speciesId }.toSet().size,
                                 unknownCount = communityRecords.size,
                                 modelStatus = vm.modelStatus,
                                 usingTrainedModel = vm.usingTrainedModel,
@@ -416,21 +436,30 @@ fun StridulateApp(
                                 onDisableContext = vm::disableContext,
                                 onListen = { requestListen() },
                                 onImport = { filePicker.launch(arrayOf("audio/*", "video/*")) },
-                                onOpenGuide = { tab = Tab.Guide },
+                                onOpenGuide = {
+                                    vm.prefetchFieldGuidePhotos()
+                                    tab = Tab.Guide
+                                },
                                 onOpenSession = { tab = Tab.Session },
                                 onOpenCommunity = { tab = Tab.Community },
-                                onOpenPacks = { showPacks = true }
+                                onOpenPacks = { showPacks = true },
+                                onOpenSettings = { showSettings = true }
                             )
                             Tab.Guide -> BrowseScreen(
-                                vm.tier1Species,
+                                species = vm.tier1Species,
+                                reliabilityFor = vm::reliabilityFor,
                                 onBack = { tab = Tab.Home },
                                 onOpenGuide = { guideId = it }
                             )
                             Tab.Session -> SessionScreen(
-                                session,
+                                sessions = logSessions,
+                                resolveSpecies = vm.repo::byId,
                                 onBack = { tab = Tab.Home },
                                 onClear = { vm.clearSession() },
-                                onOpenGuide = { guideId = it }
+                                onOpenGuide = { guideId = it },
+                                onPlaySegment = { file, start, end ->
+                                    RecordedSegmentPlayer.play(context, file, start, end)
+                                }
                             )
                             Tab.Community -> CommunityArchiveScreen(
                                 records = communityRecords,
@@ -457,7 +486,7 @@ private fun BottomBar(current: Tab, onSelect: (Tab) -> Unit) {
             NavItem(Tab.Home, Icons.Filled.Home, "Home"),
             NavItem(Tab.Guide, Icons.Filled.Book, "Guide"),
             NavItem(Tab.Listen, Icons.Filled.Mic, "Listen"),
-            NavItem(Tab.Session, Icons.Filled.NightsStay, "Tonight"),
+            NavItem(Tab.Session, Icons.Filled.History, "Log"),
             NavItem(Tab.Community, Icons.Filled.HelpOutline, "Unknowns")
         ).forEach { item ->
             NavigationBarItem(

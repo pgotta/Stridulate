@@ -4,20 +4,24 @@ import android.annotation.SuppressLint
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import java.io.BufferedOutputStream
+import java.io.File
+import java.io.FileOutputStream
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlin.math.min
 
 /**
- * Live microphone capture. Emits blocks of mono float PCM plus a rolling
- * spectrogram column stream for the live view. Runs the same FFT →
- * FeatureExtractor pipeline the file path uses.
+ * Live microphone capture. It keeps a six-second rolling float buffer for live
+ * inference while streaming the complete PCM16 recording to a private temp file.
  */
 class MicRecorder(
     private val fftSize: Int = 4096
 ) {
     @Volatile private var recording = false
     private var thread: Thread? = null
+    private var rawFile: File? = null
+    private var rawOutput: BufferedOutputStream? = null
+    private var totalSamples: Long = 0L
 
     var sampleRate: Int = 48000
         private set
@@ -28,26 +32,29 @@ class MicRecorder(
     private val _loudness = MutableStateFlow(0f)
     val loudness: StateFlow<Float> = _loudness
 
-    // Rolling raw-PCM buffer (mono float) so the trained model can run on the
-    // actual captured audio. Holds the most recent PCM_SECONDS of sound.
     private val pcmBuffer = ArrayList<Float>()
     private val pcmLock = Any()
 
-    /** Snapshot of the most recent captured PCM (mono float) and its sample rate. */
     fun capturedPcm(): Pair<FloatArray, Int> = synchronized(pcmLock) {
         pcmBuffer.toFloatArray() to sampleRate
     }
+
     fun clearPcm() = synchronized(pcmLock) { pcmBuffer.clear() }
 
-    /**
-     * Start capturing. [onFrame] is called on the audio thread with each new
-     * magnitude spectrum and its timestamp; the caller feeds it to a
-     * FeatureExtractor. Requires RECORD_AUDIO permission (checked by caller).
-     */
+    fun capturedRawFile(): File? = rawFile
+    fun capturedDurationSeconds(): Double = totalSamples.toDouble() / sampleRate.toDouble()
+
     @SuppressLint("MissingPermission")
-    fun start(onFrame: (spectrum: FloatArray, timeSec: Double) -> Unit) {
+    fun start(rawPcmFile: File? = null, onFrame: (spectrum: FloatArray, timeSec: Double) -> Unit) {
         if (recording) return
         clearPcm()
+        totalSamples = 0L
+        rawFile = rawPcmFile
+        rawOutput = rawPcmFile?.let {
+            it.parentFile?.mkdirs()
+            BufferedOutputStream(FileOutputStream(it))
+        }
+
         val minBuf = AudioRecord.getMinBufferSize(
             48000,
             AudioFormat.CHANNEL_IN_MONO,
@@ -66,6 +73,7 @@ class MicRecorder(
         val fft = Fft(fftSize)
         val pcmShort = ShortArray(fftSize)
         val frame = FloatArray(fftSize)
+        val pcmBytes = ByteArray(fftSize * 2)
         val specHeight = 96
 
         recording = true
@@ -82,7 +90,16 @@ class MicRecorder(
                     if (filled < fftSize) continue
                     filled = 0
 
-                    for (i in 0 until fftSize) frame[i] = pcmShort[i] / 32768f
+                    var byteIndex = 0
+                    for (i in 0 until fftSize) {
+                        val sample = pcmShort[i]
+                        frame[i] = sample / 32768f
+                        pcmBytes[byteIndex++] = (sample.toInt() and 0xFF).toByte()
+                        pcmBytes[byteIndex++] = ((sample.toInt() ushr 8) and 0xFF).toByte()
+                    }
+                    rawOutput?.write(pcmBytes)
+                    totalSamples += fftSize
+
                     synchronized(pcmLock) {
                         for (v in frame) pcmBuffer.add(v)
                         val maxLen = sampleRate * PCM_SECONDS
@@ -91,11 +108,11 @@ class MicRecorder(
                             pcmBuffer.subList(0, excess).clear()
                         }
                     }
+
                     val spectrum = fft.magnitudeSpectrum(frame)
                     val t = (System.nanoTime() - startNs) / 1e9
                     onFrame(spectrum, t)
 
-                    // build a downsampled spectrogram column (high freq at top)
                     val col = FloatArray(specHeight)
                     val hiBin = (16000.0 / (sampleRate / 2.0) * (fftSize / 2)).toInt()
                         .coerceIn(1, spectrum.size - 1)
@@ -111,6 +128,9 @@ class MicRecorder(
                     _loudness.value = peak
                 }
             } finally {
+                runCatching { rawOutput?.flush() }
+                runCatching { rawOutput?.close() }
+                rawOutput = null
                 try { record.stop() } catch (_: Exception) {}
                 record.release()
             }
@@ -119,8 +139,15 @@ class MicRecorder(
 
     fun stop() {
         recording = false
-        thread?.join(500)
+        thread?.join(1000)
         thread = null
+    }
+
+    fun discardCapture() {
+        stop()
+        runCatching { rawFile?.delete() }
+        rawFile = null
+        totalSamples = 0L
     }
 
     companion object {

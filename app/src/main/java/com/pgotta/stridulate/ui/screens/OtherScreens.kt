@@ -1,11 +1,13 @@
 package com.pgotta.stridulate.ui.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -17,78 +19,204 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.pgotta.stridulate.data.ReliabilityInfo
+import com.pgotta.stridulate.data.ReliabilityTier
 import com.pgotta.stridulate.data.SoundPack
 import com.pgotta.stridulate.data.Species
-import com.pgotta.stridulate.ui.Detection
-import com.pgotta.stridulate.ui.components.ProceduralSpectrogram
+import com.pgotta.stridulate.log.DetectionLogSession
+import com.pgotta.stridulate.log.LoggedSpeciesDetection
+import com.pgotta.stridulate.ui.components.SpeciesThumbnail
 import com.pgotta.stridulate.ui.theme.*
 import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
-private val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
+private val timeFmt = SimpleDateFormat("h:mm a", Locale.getDefault())
+private val dateFmt = SimpleDateFormat("EEE, MMM d", Locale.getDefault())
 
-// ---------------- SESSION ----------------
+// ---------------- PERSISTENT LOG ----------------
 @Composable
 fun SessionScreen(
-    detections: List<Detection>,
+    sessions: List<DetectionLogSession>,
+    resolveSpecies: (String) -> Species?,
     onBack: () -> Unit,
     onClear: () -> Unit,
-    onOpenGuide: (String) -> Unit
+    onOpenGuide: (String) -> Unit,
+    onPlaySegment: (String, Double, Double) -> Unit
 ) {
     Column(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
-        AppBarRow("Tonight", "SESSION DETECTIONS", onBack = onBack, trailing = {
+        AppBarRow("Log", "SAVED RECORDINGS", onBack = onBack, trailing = {
             Text("⌫", color = Parch, fontSize = 16.sp,
                 modifier = Modifier.clickable(onClick = onClear).padding(8.dp))
         })
-        val species = detections.map { it.species.id }.toSet().size
-        Row(Modifier.fillMaxWidth().padding(bottom = 14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("This session", fontFamily = Fraunces, fontSize = 20.sp, color = Parch)
-            Text("$species species", fontFamily = JetBrainsMono, fontSize = 11.sp, color = Biolume)
+        val speciesCount = sessions.flatMap { it.detections }.map { it.speciesId }.toSet().size
+        Row(
+            Modifier.fillMaxWidth().padding(bottom = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("Recording history", fontFamily = Fraunces, fontSize = 20.sp, color = Parch)
+            Text("$speciesCount species · ${sessions.size} recordings", fontFamily = JetBrainsMono,
+                fontSize = 10.sp, color = Biolume)
         }
-        if (detections.isEmpty()) {
-            Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center) {
+        if (sessions.isEmpty()) {
+            Column(
+                Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
                 Text("🦗", fontSize = 34.sp)
                 Spacer(Modifier.height(12.dp))
-                Text("No callers yet tonight.\nTap Listen to start logging.",
-                    fontFamily = JetBrainsMono, fontSize = 12.sp, color = Mute,
-                    textAlign = TextAlign.Center, lineHeight = 20.sp)
+                Text(
+                    "No saved recordings yet.\nTap Listen to start rolling identification.",
+                    fontFamily = JetBrainsMono,
+                    fontSize = 12.sp,
+                    color = Mute,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 20.sp
+                )
             }
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                items(detections) { d -> DetectionRow(d) { onOpenGuide(d.species.id) } }
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                items(sessions, key = { it.id }) { session ->
+                    LogSessionCard(session, resolveSpecies, onOpenGuide, onPlaySegment)
+                }
+                item { Spacer(Modifier.height(12.dp)) }
             }
         }
     }
 }
 
 @Composable
-private fun DetectionRow(d: Detection, onClick: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp)).background(Panel)
-            .border(BorderStroke(1.dp, Line), RoundedCornerShape(13.dp))
-            .clickable(onClick = onClick).padding(11.dp),
-        verticalAlignment = Alignment.CenterVertically
+private fun LogSessionCard(
+    session: DetectionLogSession,
+    resolveSpecies: (String) -> Species?,
+    onOpenGuide: (String) -> Unit,
+    onPlaySegment: (String, Double, Double) -> Unit
+) {
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(Panel2)
+            .border(BorderStroke(1.dp, Line), RoundedCornerShape(15.dp)).padding(12.dp)
     ) {
-        Box(Modifier.size(84.dp, 40.dp).clip(RoundedCornerShape(7.dp))) {
-            ProceduralSpectrogram(d.species.group, Modifier.fillMaxSize())
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Column {
+                Text(dateFmt.format(Date(session.startedAtMillis)), fontFamily = Fraunces,
+                    fontSize = 17.sp, color = Parch)
+                Text(
+                    "${timeFmt.format(Date(session.startedAtMillis))} · ${session.durationSeconds.toInt()} sec",
+                    fontFamily = JetBrainsMono, fontSize = 9.5.sp, color = Mute
+                )
+            }
+            Text(
+                if (session.detections.isEmpty()) "NO ACCEPTED CALLS" else "${session.detections.size} SPECIES",
+                fontFamily = JetBrainsMono,
+                fontSize = 9.sp,
+                color = if (session.detections.isEmpty()) Amber else Biolume
+            )
         }
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(d.species.common, fontFamily = Fraunces, fontSize = 15.sp, color = Parch)
-            Text(d.species.latin, fontFamily = Fraunces, fontStyle = FontStyle.Italic,
-                fontSize = 11.5.sp, color = Mute)
+        Spacer(Modifier.height(10.dp))
+        if (session.detections.isEmpty()) {
+            Text(
+                "The audio was saved for review, but every model output was below the active confidence, margin, quality, or tier rules.",
+                fontFamily = Inter, fontSize = 12.sp, color = ParchDim, lineHeight = 17.sp
+            )
+        } else {
+            session.detections.forEachIndexed { index, detection ->
+                val species = resolveSpecies(detection.speciesId)
+                if (species != null) {
+                    LoggedDetectionRow(
+                        species = species,
+                        detection = detection,
+                        session = session,
+                        onOpenGuide = onOpenGuide,
+                        onPlaySegment = onPlaySegment
+                    )
+                    if (index != session.detections.lastIndex) Spacer(Modifier.height(8.dp))
+                }
+            }
         }
-        Column(horizontalAlignment = Alignment.End) {
-            Text("${d.confidencePct}%", fontFamily = JetBrainsMono, fontSize = 14.sp, color = Biolume)
-            Text(timeFmt.format(d.time), fontFamily = JetBrainsMono, fontSize = 10.sp, color = ParchDim)
+    }
+}
+
+@Composable
+private fun LoggedDetectionRow(
+    species: Species,
+    detection: LoggedSpeciesDetection,
+    session: DetectionLogSession,
+    onOpenGuide: (String) -> Unit,
+    onPlaySegment: (String, Double, Double) -> Unit
+) {
+    val latest = detection.occurrences.lastOrNull()
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Panel)
+            .border(BorderStroke(1.dp, Line), RoundedCornerShape(12.dp)).padding(9.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(72.dp, 52.dp).clip(RoundedCornerShape(8.dp))
+                    .clickable { onOpenGuide(species.id) }
+            ) { SpeciesThumbnail(species, Modifier.fillMaxSize()) }
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f).clickable { onOpenGuide(species.id) }) {
+                Text(species.common, fontFamily = Fraunces, fontSize = 15.sp, color = Parch)
+                Text(species.latin, fontFamily = Fraunces, fontStyle = FontStyle.Italic,
+                    fontSize = 11.sp, color = Mute)
+                Text(
+                    "${detection.occurrences.size} accepted window${if (detection.occurrences.size == 1) "" else "s"}",
+                    fontFamily = JetBrainsMono, fontSize = 8.5.sp, color = ParchDim
+                )
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text("${detection.latestConfidencePct}%", fontFamily = JetBrainsMono,
+                    fontSize = 15.sp, color = Biolume)
+                Text("peak ${detection.peakConfidencePct}%", fontFamily = JetBrainsMono,
+                    fontSize = 8.sp, color = Mute)
+            }
+        }
+        Spacer(Modifier.height(7.dp))
+        DetectionTimeline(session.durationSeconds, detection)
+        Spacer(Modifier.height(7.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            Text(
+                "▶ Play latest marked call",
+                modifier = Modifier.clip(RoundedCornerShape(100.dp)).background(Color(0x1A66D59A))
+                    .border(BorderStroke(1.dp, Color(0x553F7D5F)), RoundedCornerShape(100.dp))
+                    .clickable(enabled = latest != null) {
+                        latest?.let { onPlaySegment(session.audioFilePath, it.startSeconds, it.endSeconds) }
+                    }.padding(horizontal = 10.dp, vertical = 6.dp),
+                fontFamily = JetBrainsMono, fontSize = 9.sp,
+                color = if (latest != null) Biolume else Mute
+            )
+        }
+    }
+}
+
+@Composable
+private fun DetectionTimeline(durationSeconds: Double, detection: LoggedSpeciesDetection) {
+    Canvas(
+        Modifier.fillMaxWidth().height(34.dp).clip(RoundedCornerShape(7.dp)).background(SpecBg)
+    ) {
+        val center = size.height / 2f
+        val step = size.width / 36f
+        for (i in 0..36) {
+            val amp = (3f + ((i * 17) % 11))
+            drawLine(
+                color = Color(0xFF315149),
+                start = Offset(i * step, center - amp),
+                end = Offset(i * step, center + amp),
+                strokeWidth = 1.5f
+            )
+        }
+        detection.occurrences.forEach { occurrence ->
+            val fraction = if (durationSeconds > 0) occurrence.endSeconds / durationSeconds else 0.0
+            val x = (fraction.coerceIn(0.0, 1.0) * size.width).toFloat()
+            drawLine(Amber, Offset(x, 2f), Offset(x, size.height - 2f), strokeWidth = 3f)
         }
     }
 }
@@ -97,14 +225,18 @@ private fun DetectionRow(d: Detection, onClick: () -> Unit) {
 @Composable
 fun BrowseScreen(
     species: List<Species>,
+    reliabilityFor: (Species) -> ReliabilityInfo,
     onBack: () -> Unit,
     onOpenGuide: (String) -> Unit
 ) {
     var query by remember { mutableStateOf("") }
-    var filter by remember { mutableStateOf("all") }
+    var groupFilter by remember { mutableStateOf("all") }
+    var tierFilter by remember { mutableStateOf<ReliabilityTier?>(null) }
 
     val filtered = species.filter { sp ->
-        (filter == "all" || sp.group == filter) &&
+        val reliability = reliabilityFor(sp)
+        (groupFilter == "all" || sp.group == groupFilter) &&
+            (tierFilter == null || reliability.tier == tierFilter) &&
             (query.isBlank() || listOf(sp.common, sp.latin, sp.family, sp.callType, sp.habitat)
                 .any { it.contains(query, ignoreCase = true) })
     }
@@ -124,16 +256,24 @@ fun BrowseScreen(
                 focusedTextColor = Parch, unfocusedTextColor = Parch, cursorColor = Biolume
             )
         )
-        Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("all" to "All", "cricket" to "Crickets",
-                "katydid" to "Katydids", "cicada" to "Cicadas").forEach { (g, label) ->
-                FilterPill(label, filter == g) { filter = g }
+        Spacer(Modifier.height(9.dp))
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            items(listOf("all" to "All", "cricket" to "Crickets", "katydid" to "Katydids", "cicada" to "Cicadas")) { (g, label) ->
+                FilterPill(label, groupFilter == g) { groupFilter = g }
             }
         }
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(7.dp))
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            item { FilterPill("All tiers", tierFilter == null) { tierFilter = null } }
+            items(listOf(ReliabilityTier.VERIFIED, ReliabilityTier.GOOD, ReliabilityTier.EXPERIMENTAL, ReliabilityTier.NOT_READY)) { tier ->
+                FilterPill(tier.displayName, tierFilter == tier) { tierFilter = tier }
+            }
+        }
+        Spacer(Modifier.height(11.dp))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-            items(filtered) { sp -> BrowseRow(sp) { onOpenGuide(sp.id) } }
+            items(filtered, key = { it.id }) { sp ->
+                BrowseRow(sp, reliabilityFor(sp)) { onOpenGuide(sp.id) }
+            }
         }
     }
 }
@@ -144,31 +284,36 @@ private fun FilterPill(label: String, on: Boolean, onClick: () -> Unit) {
         Modifier.clip(RoundedCornerShape(100.dp))
             .background(if (on) Biolume else Panel)
             .border(BorderStroke(1.dp, if (on) Biolume else Line), RoundedCornerShape(100.dp))
-            .clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 8.dp)
+            .clickable(onClick = onClick).padding(horizontal = 13.dp, vertical = 7.dp)
     ) {
-        Text(label, fontFamily = JetBrainsMono, fontSize = 11.sp,
+        Text(label, fontFamily = JetBrainsMono, fontSize = 10.5.sp,
             color = if (on) Color(0xFF0B1A0C) else ParchDim)
     }
 }
 
 @Composable
-private fun BrowseRow(sp: Species, onClick: () -> Unit) {
+private fun BrowseRow(sp: Species, reliability: ReliabilityInfo, onClick: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp)).background(Panel)
             .border(BorderStroke(1.dp, Line), RoundedCornerShape(13.dp))
-            .clickable(onClick = onClick).padding(12.dp),
+            .clickable(onClick = onClick).padding(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(Modifier.size(76.dp, 38.dp).clip(RoundedCornerShape(7.dp))) {
-            ProceduralSpectrogram(sp.group, Modifier.fillMaxSize())
+        Box(Modifier.size(76.dp, 54.dp).clip(RoundedCornerShape(8.dp))) {
+            SpeciesThumbnail(sp, Modifier.fillMaxSize())
         }
-        Spacer(Modifier.width(13.dp))
+        Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(sp.common, fontFamily = Fraunces, fontSize = 15.5.sp, color = Parch)
             Text(sp.latin, fontFamily = Fraunces, fontStyle = FontStyle.Italic,
                 fontSize = 12.sp, color = Mute)
-            Text(sp.familyLatin.substringAfterLast("·").trim().uppercase(),
-                fontFamily = JetBrainsMono, fontSize = 9.5.sp, color = ParchDim, letterSpacing = 0.5.sp)
+            Text(
+                reliability.tier.displayName.uppercase(),
+                fontFamily = JetBrainsMono,
+                fontSize = 9.sp,
+                color = tierColor(reliability.tier),
+                letterSpacing = 0.5.sp
+            )
         }
         Text("›", color = Mute, fontSize = 18.sp)
     }

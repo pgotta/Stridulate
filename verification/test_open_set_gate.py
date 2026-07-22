@@ -13,4 +13,4 @@ assert not accepted("Microcentrum_rhombifolium", "VERIFIED", 0.72, 0.10), "72% G
 assert accepted("Microcentrum_rhombifolium", "VERIFIED", 0.96, 0.10), "Very strong Greater Angle-wing candidate should pass threshold layer"
 assert not accepted("Cyrtoxipha_columbiana", "EXPERIMENTAL", 0.92, 0.10), "Experimental class below 93% must be rejected"
 assert accepted("Cyrtoxipha_columbiana", "EXPERIMENTAL", 0.95, 0.20), "High-score Experimental candidate should pass threshold layer"
-print("PASS: v2.3.2 open-set gate scenarios")
+print("PASS: v2.4.0 open-set gate scenarios")

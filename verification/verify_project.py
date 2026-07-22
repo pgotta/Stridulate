@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline integrity and contract checks for Stridulate Android v2.3.2."""
+"""Offline integrity and contract checks for Stridulate Android v2.4.0."""
 from __future__ import annotations
 
 import hashlib
@@ -454,10 +454,10 @@ def main() -> int:
         fail(f"Unexpected TFLite output tensor: {tflite['output']}")
 
     gradle_text = (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")
-    if 'versionName = "2.3.2"' not in gradle_text:
-        fail("App versionName is not 2.3.2")
-    if not re.search(r"versionCode\s*=\s*12\b", gradle_text):
-        fail("App versionCode is not 12")
+    if 'versionName = "2.4.0"' not in gradle_text:
+        fail("App versionName is not 2.4.0")
+    if not re.search(r"versionCode\s*=\s*13\b", gradle_text):
+        fail("App versionCode is not 13")
 
     classifier_text = (SRC / "com/pgotta/stridulate/classifier/TfLiteClassifier.kt").read_text(encoding="utf-8")
     decision_text = (SRC / "com/pgotta/stridulate/classifier/OpenSetDecision.kt").read_text(encoding="utf-8")
@@ -673,7 +673,7 @@ def main() -> int:
     print("PASS: exact epoch-19 67-class assets and checksums")
     print(f"PASS: labels={len(labels)}; supported_species={len(labels) - 1}; verified={len(EXPECTED_VERIFIED)}; good={len(EXPECTED_GOOD)}; experimental={len(EXPECTED_EXPERIMENTAL)}; not_ready={len(EXPECTED_NOT_READY)}")
     print(f"PASS: TFLite input={tflite['input']} output={tflite['output']}")
-    print("PASS: dynamic output count, original calibration plus precision-first open-set gate, top-three UI, version 2.3.2")
+    print("PASS: dynamic output count, original calibration plus precision-first open-set gate, top-three UI, version 2.4.0")
     print("PASS: non-blocking ten-minute background context refresh, on-demand refresh, 30-minute scoring cutoff, two-hour offline fallback")
     print("PASS: imported-recording context safety, on-device recording-quality assessment, privacy exclusions")
     print("PASS: local unknown archive, iNaturalist linking/refresh, GitHub tracking, human-reviewed CC BY 4.0 export")

@@ -5,10 +5,14 @@
         <!-- Keep approximate location and cached weather off cloud backups. -->
         <exclude domain="sharedpref" path="observation_context_v2.xml" />
         <exclude domain="file" path="community_observations/" />
+        <exclude domain="file" path="detection_log/" />
+        <exclude domain="file" path="species_photos/" />
     </cloud-backup>
     <device-transfer>
         <include domain="sharedpref" path="." />
         <exclude domain="sharedpref" path="observation_context_v2.xml" />
         <exclude domain="file" path="community_observations/" />
+        <exclude domain="file" path="detection_log/" />
+        <exclude domain="file" path="species_photos/" />
     </device-transfer>
 </data-extraction-rules>

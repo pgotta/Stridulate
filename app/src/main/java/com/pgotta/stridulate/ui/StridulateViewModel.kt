@@ -11,7 +11,6 @@ import com.pgotta.stridulate.audio.MeasuredSignature
 import com.pgotta.stridulate.audio.MicRecorder
 import com.pgotta.stridulate.audio.ReferenceSoundPlayer
 import com.pgotta.stridulate.audio.RecordingQuality
-import com.pgotta.stridulate.audio.RecordingQualityAssessor
 import com.pgotta.stridulate.classifier.Candidate
 import com.pgotta.stridulate.classifier.ClassificationPolicy
 import com.pgotta.stridulate.classifier.InsectClassifier
@@ -24,9 +23,12 @@ import com.pgotta.stridulate.community.EvidenceAudio
 import com.pgotta.stridulate.community.EvidenceAudioStore
 import com.pgotta.stridulate.community.EvidenceSource
 import com.pgotta.stridulate.community.INaturalistClient
+import com.pgotta.stridulate.data.DetectionSettingsRepository
+import com.pgotta.stridulate.data.DetectionTierSettings
 import com.pgotta.stridulate.data.OpenSetSafetyPolicy
 import com.pgotta.stridulate.data.ReliabilityInfo
 import com.pgotta.stridulate.data.Species
+import com.pgotta.stridulate.data.SpeciesPhoto
 import com.pgotta.stridulate.data.SpeciesReliabilityRepository
 import com.pgotta.stridulate.data.SpeciesRepository
 import com.pgotta.stridulate.environment.ContextAssessment
@@ -34,6 +36,10 @@ import com.pgotta.stridulate.environment.ContextProfileRepository
 import com.pgotta.stridulate.environment.ContextReranker
 import com.pgotta.stridulate.environment.EnvironmentRepository
 import com.pgotta.stridulate.environment.ObservationContext
+import com.pgotta.stridulate.log.DetectionLogRepository
+import com.pgotta.stridulate.log.DetectionLogSession
+import com.pgotta.stridulate.log.DetectionOccurrence
+import com.pgotta.stridulate.log.LoggedSpeciesDetection
 import java.io.File
 import java.util.Date
 import kotlinx.coroutines.CancellationException
@@ -51,7 +57,9 @@ import kotlinx.coroutines.withContext
 data class Detection(
     val species: Species,
     val confidencePct: Int,
-    val time: Date
+    val peakConfidencePct: Int = confidencePct,
+    val time: Date,
+    val occurrences: List<DetectionOccurrence> = emptyList()
 )
 
 enum class IdentificationDecision {
@@ -108,6 +116,10 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
 
     val repo = SpeciesRepository(app)
     private val reliabilityRepository = SpeciesReliabilityRepository(app)
+    private val detectionSettingsRepository = DetectionSettingsRepository(app)
+    val tierSettings: StateFlow<DetectionTierSettings> = detectionSettingsRepository.tiers
+    private val detectionLogRepository = DetectionLogRepository(app)
+    val logSessions: StateFlow<List<DetectionLogSession>> = detectionLogRepository.sessions
     private val contextProfiles = ContextProfileRepository(app)
     private val contextReranker = ContextReranker(contextProfiles)
     private val environmentRepository = EnvironmentRepository(app)
@@ -219,8 +231,10 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
     private val _ui = MutableStateFlow<UiState>(UiState.Idle)
     val ui: StateFlow<UiState> = _ui
 
-    private val _session = MutableStateFlow<List<Detection>>(emptyList())
-    val session: StateFlow<List<Detection>> = _session
+    private val _liveDetections = MutableStateFlow<List<Detection>>(emptyList())
+    val liveDetections: StateFlow<List<Detection>> = _liveDetections
+    private val _recordingElapsedSeconds = MutableStateFlow(0.0)
+    val recordingElapsedSeconds: StateFlow<Double> = _recordingElapsedSeconds
 
     val spectrogramColumn: StateFlow<FloatArray> get() = mic.spectrogramColumn
     val loudness: StateFlow<Float> get() = mic.loudness
@@ -231,6 +245,10 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
     private var liveExtractor: FeatureExtractor? = null
     private var workJob: Job? = null
     private var contextRefreshJob: Job? = null
+    private var liveAnalysisJob: Job? = null
+    private var elapsedJob: Job? = null
+    private var photoPrefetchJob: Job? = null
+    private var recordingStartedAtMillis: Long = 0L
 
     init {
         // Observation context is optional and must never delay microphone startup. Polling is
@@ -288,6 +306,8 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
 
     fun startListening() {
         cancelAnalysis(silent = true)
+        liveAnalysisJob?.cancel()
+        elapsedJob?.cancel()
         mic.stop()
         // Recording always starts immediately. Optional location/weather refresh runs on its own
         // coroutine and can update the eventual observation context without blocking the mic.
@@ -298,65 +318,131 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
     private fun beginListening() {
         _ui.value = UiState.Listening
         _liveCandidate.value = null
+        _liveDetections.value = emptyList()
+        _recordingElapsedSeconds.value = 0.0
+        recordingStartedAtMillis = System.currentTimeMillis()
         val ext = FeatureExtractor(48000, fftSize).also { liveExtractor = it }
-        mic.start { spectrum, t ->
-            ext.addFrame(spectrum, t)
-            // The neural model needs the complete raw recording, so ID waits for Stop.
-            if (ext.frameCount() % 8 == 0) _liveCandidate.value = null
+        val rawFile = detectionLogRepository.newRawCaptureFile()
+        mic.start(rawFile) { spectrum, t -> ext.addFrame(spectrum, t) }
+
+        elapsedJob?.cancel()
+        elapsedJob = viewModelScope.launch {
+            while (isActive && _ui.value is UiState.Listening) {
+                _recordingElapsedSeconds.value =
+                    (System.currentTimeMillis() - recordingStartedAtMillis).coerceAtLeast(0L) / 1000.0
+                delay(250L)
+            }
+        }
+
+        liveAnalysisJob?.cancel()
+        liveAnalysisJob = viewModelScope.launch {
+            delay(LIVE_INITIAL_DELAY_MILLIS)
+            while (isActive && _ui.value is UiState.Listening) {
+                analyzeRollingWindow()
+                delay(LIVE_ANALYSIS_INTERVAL_MILLIS)
+            }
         }
     }
 
-    fun stopAndIdentify() {
-        mic.stop()
-        if (!usingTrainedModel) {
-            _ui.value = UiState.Error(
-                "The trained sound model is not available on this device. " +
-                    "Stridulate will not substitute a heuristic guess. $modelStatus"
-            )
-            return
-        }
-        val sig = liveExtractor?.aggregate()
-        if (sig == null || sig.loudness < 45) {
-            _ui.value = UiState.Error("Too quiet — get closer to the caller and try again.")
-            return
-        }
-        _ui.value = UiState.Analyzing("Checking recording quality and matching the epoch-19 model…")
+    private suspend fun analyzeRollingWindow() {
+        if (!usingTrainedModel) return
         val (pcm, pcmSr) = mic.capturedPcm()
-        launchWork {
-            val (candidates, quality) = withContext(Dispatchers.Default) {
-                val ranked = if (pcm.isNotEmpty()) classifier.classify(pcm, pcmSr, sig)
-                else classifier.classify(sig)
-                val assessed = if (pcm.isNotEmpty()) RecordingQualityAssessor.assess(pcm, pcmSr, sig)
-                else null
-                ranked to assessed
-            }
-            currentCoroutineContext().ensureActive()
-            val evidence = if (pcm.isNotEmpty()) {
-                withContext(Dispatchers.IO) {
-                    EvidenceAudioStore.writeTemp(
-                        getApplication(),
-                        pcm,
-                        pcmSr,
-                        EvidenceSource.LIVE,
-                        System.currentTimeMillis()
-                    )
-                }
-            } else null
-            currentCoroutineContext().ensureActive()
-            recordAndShow(
-                IdResult(
-                    signature = sig,
-                    candidates = candidates,
-                    spectrogram = emptyList(),
-                    recordingQuality = quality,
-                    evidenceAudio = evidence
-                )
+        if (pcm.size < pcmSr * 5) return
+        val result = withContext(Dispatchers.Default) { clipAnalyzer.analyze(pcm, pcmSr) } ?: return
+        val top = result.candidates.firstOrNull() ?: return
+        val runnerUp = result.candidates.getOrNull(1)
+        val policy = classifier.policy ?: return
+        val gate = OpenSetDecision.evaluate(
+            top = top,
+            runnerUp = runnerUp,
+            signature = result.signature,
+            recordingQuality = result.quality,
+            policy = policy
+        )
+        if (gate.type == OpenSetDecisionType.REJECTED) {
+            _liveCandidate.value = null
+            return
+        }
+        val species = top.species ?: return
+        if (!tierSettings.value.allows(top.reliability.tier)) {
+            _liveCandidate.value = null
+            return
+        }
+
+        val nowSeconds = _recordingElapsedSeconds.value
+        val occurrence = DetectionOccurrence(
+            startSeconds = (nowSeconds - LIVE_WINDOW_SECONDS).coerceAtLeast(0.0),
+            endSeconds = nowSeconds,
+            confidencePct = (top.audioConfidence * 100.0).toInt().coerceIn(0, 100)
+        )
+        val current = _liveDetections.value
+        val existing = current.firstOrNull { it.species.id == species.id }
+        val updated = if (existing == null) {
+            Detection(
+                species = species,
+                confidencePct = occurrence.confidencePct,
+                peakConfidencePct = occurrence.confidencePct,
+                time = Date(),
+                occurrences = listOf(occurrence)
             )
+        } else {
+            existing.copy(
+                confidencePct = occurrence.confidencePct,
+                peakConfidencePct = maxOf(existing.peakConfidencePct, occurrence.confidencePct),
+                time = Date(),
+                occurrences = (existing.occurrences + occurrence).takeLast(MAX_OCCURRENCES_PER_SPECIES)
+            )
+        }
+        _liveDetections.value = listOf(updated) + current.filterNot { it.species.id == species.id }
+        _liveCandidate.value = top
+    }
+
+    fun stopAndIdentify() = stopAndSaveLog()
+
+    fun stopAndSaveLog() {
+        liveAnalysisJob?.cancel()
+        liveAnalysisJob = null
+        elapsedJob?.cancel()
+        elapsedJob = null
+        mic.stop()
+        val rawFile = mic.capturedRawFile()
+        val started = recordingStartedAtMillis
+        val ended = System.currentTimeMillis()
+        val detections = _liveDetections.value.map { detection ->
+            LoggedSpeciesDetection(
+                speciesId = detection.species.id,
+                latestConfidencePct = detection.confidencePct,
+                peakConfidencePct = detection.peakConfidencePct,
+                lastHeardAtMillis = detection.time.time,
+                occurrences = detection.occurrences
+            )
+        }
+        _ui.value = UiState.Analyzing("Saving recording to Log…")
+        launchWork {
+            withContext(Dispatchers.IO) {
+                detectionLogRepository.saveSession(
+                    startedAtMillis = started,
+                    endedAtMillis = ended,
+                    rawPcmFile = rawFile,
+                    sampleRate = mic.sampleRate,
+                    detections = detections
+                )
+            }
+            _recordingElapsedSeconds.value = 0.0
+            _liveCandidate.value = null
+            _ui.value = UiState.Idle
         }
     }
 
     fun cancelListening() {
-        mic.stop()
+        liveAnalysisJob?.cancel()
+        liveAnalysisJob = null
+        elapsedJob?.cancel()
+        elapsedJob = null
+        mic.discardCapture()
+        _liveDetections.value = emptyList()
+        _recordingElapsedSeconds.value = 0.0
+        _liveCandidate.value = null
         _ui.value = UiState.Idle
     }
 
@@ -498,12 +584,6 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
         )
         val result = reapplyContext(baseResult, contextSnapshot)
 
-        if (decision != IdentificationDecision.NO_CONFIDENT_MATCH) {
-            topOutput.species?.let { species ->
-                val detection = Detection(species, (topOutput.audioConfidence * 100).toInt(), Date())
-                _session.value = listOf(detection) + _session.value
-            }
-        }
         _ui.value = UiState.Result(result)
     }
 
@@ -691,7 +771,18 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun clearSession() {
-        _session.value = emptyList()
+        detectionLogRepository.clear()
+    }
+
+    fun setTierEnabled(tier: com.pgotta.stridulate.data.ReliabilityTier, enabled: Boolean) {
+        detectionSettingsRepository.setEnabled(tier, enabled)
+    }
+
+    fun prefetchFieldGuidePhotos() {
+        if (photoPrefetchJob?.isActive == true) return
+        photoPrefetchJob = viewModelScope.launch(Dispatchers.IO) {
+            SpeciesPhoto.prefetch(getApplication(), tier1Species)
+        }
     }
 
     fun dismissResult() {
@@ -703,6 +794,9 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
 
     override fun onCleared() {
         cancelAnalysis(silent = true)
+        liveAnalysisJob?.cancel()
+        elapsedJob?.cancel()
+        photoPrefetchJob?.cancel()
         mic.stop()
         EvidenceAudioStore.deleteQuietly((_ui.value as? UiState.Result)?.result?.evidenceAudio)
         ReferenceSoundPlayer.stop()
@@ -713,5 +807,9 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
 
     private companion object {
         const val CONTEXT_REFRESH_POLL_MILLIS = 60_000L
+        const val LIVE_INITIAL_DELAY_MILLIS = 5_500L
+        const val LIVE_ANALYSIS_INTERVAL_MILLIS = 2_500L
+        const val LIVE_WINDOW_SECONDS = 5.0
+        const val MAX_OCCURRENCES_PER_SPECIES = 100
     }
 }

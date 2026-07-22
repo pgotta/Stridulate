@@ -50,6 +50,34 @@ object EvidenceAudioStore {
         runCatching { evidence?.file?.takeIf { it.exists() }?.delete() }
     }
 
+
+    fun wrapRawPcm16AsWav(rawFile: File, wavFile: File, sampleRate: Int) {
+        require(sampleRate > 0) { "Invalid sample rate." }
+        require(rawFile.exists() && rawFile.length() > 0L) { "No raw PCM audio was captured." }
+        wavFile.parentFile?.mkdirs()
+        val dataSize = rawFile.length().coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        val byteRate = sampleRate * 2
+        val header = ByteBuffer.allocate(44).order(ByteOrder.LITTLE_ENDIAN).apply {
+            put("RIFF".toByteArray(Charsets.US_ASCII))
+            putInt(36 + dataSize)
+            put("WAVE".toByteArray(Charsets.US_ASCII))
+            put("fmt ".toByteArray(Charsets.US_ASCII))
+            putInt(16)
+            putShort(1)
+            putShort(1)
+            putInt(sampleRate)
+            putInt(byteRate)
+            putShort(2)
+            putShort(16)
+            put("data".toByteArray(Charsets.US_ASCII))
+            putInt(dataSize)
+        }.array()
+        BufferedOutputStream(FileOutputStream(wavFile)).use { out ->
+            out.write(header)
+            rawFile.inputStream().buffered().use { input -> input.copyTo(out) }
+        }
+    }
+
     fun writePcm16Wav(file: File, samples: FloatArray, sampleRate: Int) {
         file.parentFile?.mkdirs()
         val dataSize = samples.size * 2
