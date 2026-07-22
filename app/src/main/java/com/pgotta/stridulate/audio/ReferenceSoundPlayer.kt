@@ -16,9 +16,12 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * Plays a real community-recorded insect call instead of generating a sine wave
- * or white noise. Recordings are resolved by exact scientific taxon through
- * iNaturalist observations with sounds, preferring research-grade records.
+ * Plays taxon-matched iNaturalist community recordings.
+ *
+ * These are not curated studio reference calls: they can contain wind, speech,
+ * traffic, other animals, or overlapping insects. Repeated taps cycle through
+ * several unflagged recordings so one noisy observation is not presented as
+ * authoritative for the species.
  */
 object ReferenceSoundPlayer {
 
@@ -32,7 +35,8 @@ object ReferenceSoundPlayer {
     private val executor = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
     private val requestId = AtomicLong(0)
-    private val cache = HashMap<String, SoundInfo>()
+    private val cache = HashMap<String, List<SoundInfo>>()
+    private val nextIndex = HashMap<String, Int>()
 
     @Volatile
     private var player: MediaPlayer? = null
@@ -41,25 +45,35 @@ object ReferenceSoundPlayer {
         val app = context.applicationContext
         stop()
         val request = requestId.incrementAndGet()
-        Toast.makeText(app, "Finding a real ${species.common} recording…", Toast.LENGTH_SHORT).show()
+        Toast.makeText(
+            app,
+            "Finding a taxon-matched community recording…",
+            Toast.LENGTH_SHORT
+        ).show()
 
         executor.execute {
             val key = normalize(species.latin)
-            val info = synchronized(cache) { cache[key] } ?: findSound(species.latin)?.also {
-                synchronized(cache) { cache[key] = it }
+            val sounds = synchronized(cache) { cache[key] } ?: findSounds(species.latin).also {
+                if (it.isNotEmpty()) synchronized(cache) { cache[key] = it }
             }
+            val index = if (sounds.isEmpty()) 0 else synchronized(nextIndex) {
+                val selected = (nextIndex[key] ?: 0) % sounds.size
+                nextIndex[key] = selected + 1
+                selected
+            }
+            val info = sounds.getOrNull(index)
 
             main.post {
                 if (request != requestId.get()) return@post
                 if (info == null) {
                     Toast.makeText(
                         app,
-                        "No taxon-verified recording was available for ${species.common}.",
+                        "No taxon-matched community recording was available for ${species.common}.",
                         Toast.LENGTH_LONG
                     ).show()
                     return@post
                 }
-                prepareAndPlay(app, species, info, request)
+                prepareAndPlay(app, species, info, index, sounds.size, request)
             }
         }
     }
@@ -68,6 +82,8 @@ object ReferenceSoundPlayer {
         context: Context,
         species: Species,
         info: SoundInfo,
+        index: Int,
+        total: Int,
         request: Long
     ) {
         val mediaPlayer = MediaPlayer().apply {
@@ -85,11 +101,13 @@ object ReferenceSoundPlayer {
                 }
                 prepared.start()
                 val credit = buildString {
-                    append("Real ").append(species.common).append(" recording")
+                    append("Community recording ").append(index + 1).append('/').append(total)
+                    append(" for ").append(species.common)
                     if (info.attribution.isNotBlank()) append(" · ").append(info.attribution)
                     info.licenseCode?.takeIf(String::isNotBlank)?.let {
                         append(" · ").append(it.uppercase())
                     }
+                    append(" · background noise may be present")
                 }
                 Toast.makeText(context, credit, Toast.LENGTH_LONG).show()
             }
@@ -102,7 +120,7 @@ object ReferenceSoundPlayer {
                 failed.release()
                 Toast.makeText(
                     context,
-                    "The real recording could not be played. Check your connection.",
+                    "That community recording could not be played. Tap again to try another.",
                     Toast.LENGTH_LONG
                 ).show()
                 true
@@ -114,7 +132,7 @@ object ReferenceSoundPlayer {
         } catch (_: Exception) {
             if (player === mediaPlayer) player = null
             mediaPlayer.release()
-            Toast.makeText(context, "The recording could not be opened.", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, "The recording could not be opened. Tap again to try another.", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -137,10 +155,16 @@ object ReferenceSoundPlayer {
         }
     }
 
-    private fun findSound(latinName: String): SoundInfo? {
-        val taxonId = exactTaxonId(latinName) ?: return null
-        val research = observationSound(taxonId, researchGrade = true)
-        return research ?: observationSound(taxonId, researchGrade = false)
+    private fun findSounds(latinName: String): List<SoundInfo> {
+        val taxonId = exactTaxonId(latinName) ?: return emptyList()
+        val deduplicated = LinkedHashMap<String, SoundInfo>()
+        observationSounds(taxonId, researchGrade = true).forEach { deduplicated.putIfAbsent(it.fileUrl, it) }
+        if (deduplicated.size < MAX_SOUNDS) {
+            observationSounds(taxonId, researchGrade = false).forEach {
+                deduplicated.putIfAbsent(it.fileUrl, it)
+            }
+        }
+        return deduplicated.values.take(MAX_SOUNDS)
     }
 
     private fun exactTaxonId(latinName: String): Int? {
@@ -161,47 +185,51 @@ object ReferenceSoundPlayer {
         return null
     }
 
-    private fun observationSound(taxonId: Int, researchGrade: Boolean): SoundInfo? {
+    private fun observationSounds(taxonId: Int, researchGrade: Boolean): List<SoundInfo> {
         val url = buildString {
             append("https://api.inaturalist.org/v1/observations")
             append("?taxon_id=").append(taxonId)
             append("&sounds=true&verifiable=true")
             append("&sound_license=cc0,cc-by,cc-by-nc,cc-by-nd,cc-by-sa,cc-by-nc-nd,cc-by-nc-sa")
             if (researchGrade) append("&quality_grade=research")
-            append("&per_page=30&order_by=votes&order=desc")
+            append("&per_page=50&order_by=votes&order=desc")
         }
-        val json = getJson(url) ?: return null
+        val json = getJson(url) ?: return emptyList()
         val results = json.optJSONArray("results") ?: JSONArray()
-        for (i in 0 until results.length()) {
-            val observation = results.optJSONObject(i) ?: continue
-            val sounds = observation.optJSONArray("sounds") ?: continue
-            for (j in 0 until sounds.length()) {
-                val sound = sounds.optJSONObject(j) ?: continue
-                val flags = sound.optJSONArray("flags")
-                if (flags != null && flags.length() > 0) continue
-                val rawUrl = sound.optString("file_url").trim()
-                if (rawUrl.isBlank()) continue
-                val fileUrl = when {
-                    rawUrl.startsWith("//") -> "https:$rawUrl"
-                    rawUrl.startsWith("http://") -> "https://${rawUrl.removePrefix("http://")}" 
-                    else -> rawUrl
+        return buildList {
+            for (i in 0 until results.length()) {
+                val observation = results.optJSONObject(i) ?: continue
+                val sounds = observation.optJSONArray("sounds") ?: continue
+                for (j in 0 until sounds.length()) {
+                    val sound = sounds.optJSONObject(j) ?: continue
+                    val flags = sound.optJSONArray("flags")
+                    if (flags != null && flags.length() > 0) continue
+                    val rawUrl = sound.optString("file_url").trim()
+                    if (rawUrl.isBlank()) continue
+                    val fileUrl = when {
+                        rawUrl.startsWith("//") -> "https:$rawUrl"
+                        rawUrl.startsWith("http://") -> "https://${rawUrl.removePrefix("http://")}" 
+                        else -> rawUrl
+                    }
+                    val observationId = observation.optLong("id", -1L)
+                    add(
+                        SoundInfo(
+                            fileUrl = fileUrl,
+                            attribution = sound.optString("attribution").ifBlank {
+                                observation.optJSONObject("user")?.optString("login")
+                                    ?.takeIf(String::isNotBlank)
+                                    ?.let { "iNaturalist user $it" }
+                                    ?: "iNaturalist community recording"
+                            },
+                            licenseCode = sound.optString("license_code").trim().takeIf { it.isNotEmpty() },
+                            observationUrl = observationId.takeIf { it > 0 }
+                                ?.let { "https://www.inaturalist.org/observations/$it" }
+                        )
+                    )
+                    if (size >= MAX_SOUNDS) return@buildList
                 }
-                val observationId = observation.optLong("id", -1L)
-                return SoundInfo(
-                    fileUrl = fileUrl,
-                    attribution = sound.optString("attribution").ifBlank {
-                        observation.optJSONObject("user")?.optString("login")
-                            ?.takeIf(String::isNotBlank)
-                            ?.let { "iNaturalist user $it" }
-                            ?: "iNaturalist community recording"
-                    },
-                    licenseCode = sound.optString("license_code").trim().takeIf { it.isNotEmpty() },
-                    observationUrl = observationId.takeIf { it > 0 }
-                        ?.let { "https://www.inaturalist.org/observations/$it" }
-                )
             }
         }
-        return null
     }
 
     private fun getJson(url: String): JSONObject? {
@@ -213,7 +241,7 @@ object ReferenceSoundPlayer {
                 readTimeout = 15_000
                 setRequestProperty(
                     "User-Agent",
-                    "Stridulate/2.4.0 Android (taxon-matched reference audio)"
+                    "Stridulate/2.5.0 Android (taxon-matched community audio)"
                 )
                 setRequestProperty("Accept", "application/json")
             }
@@ -229,4 +257,6 @@ object ReferenceSoundPlayer {
 
     private fun normalize(value: String): String =
         value.trim().lowercase().replace('_', ' ').replace(Regex("\\s+"), " ")
+
+    private const val MAX_SOUNDS = 8
 }

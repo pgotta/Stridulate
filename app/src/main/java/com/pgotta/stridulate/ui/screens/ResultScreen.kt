@@ -174,7 +174,7 @@ fun ResultScreen(
 
             Spacer(Modifier.height(15.dp))
             PrimaryButton(
-                "▸ Play reference recording",
+                "▸ Play community recording",
                 { onPlay(species) },
                 Modifier.fillMaxWidth(),
                 container = Biolume,

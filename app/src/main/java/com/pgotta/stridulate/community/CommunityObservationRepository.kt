@@ -1,6 +1,8 @@
 package com.pgotta.stridulate.community
 
 import android.content.Context
+import com.pgotta.stridulate.data.Species
+import com.pgotta.stridulate.log.DetectionLogSession
 import com.pgotta.stridulate.ui.IdResult
 import java.io.File
 import java.io.FileOutputStream
@@ -64,6 +66,66 @@ class CommunityObservationRepository(private val context: Context) {
             region = observation.region.displayName,
             temperatureF = observation.temperatureF,
             weatherObservedAtMillis = observation.temperatureObservedAtMillis
+        )
+        replace(record)
+        return record
+    }
+
+    /** Move a complete recording from the rolling Log into the local Unknowns review archive. */
+    @Synchronized
+    fun importLogSession(
+        session: DetectionLogSession,
+        resolveSpecies: (String) -> Species?
+    ): CommunityObservationRecord {
+        val sourceAudio = File(session.audioFilePath)
+        require(sourceAudio.exists() && sourceAudio.length() > 44L) {
+            "The saved Log recording is missing or empty."
+        }
+
+        val id = "STR-${System.currentTimeMillis()}-${UUID.randomUUID().toString().take(6).uppercase(Locale.US)}"
+        val audioName = "$id.wav"
+        sourceAudio.copyTo(File(directory, audioName), overwrite = true)
+
+        val candidates = session.detections
+            .sortedByDescending { it.peakConfidencePct }
+            .take(3)
+            .map { detection ->
+                val species = resolveSpecies(detection.speciesId)
+                SavedCandidate(
+                    label = species?.latin?.replace(' ', '_') ?: detection.speciesId,
+                    scientificName = species?.latin,
+                    commonName = species?.common,
+                    audioScore = detection.peakConfidencePct.coerceIn(0, 100) / 100.0,
+                    reliabilityTier = "Accepted in rolling Log"
+                )
+            }
+        val top = candidates.firstOrNull()
+        val record = CommunityObservationRecord(
+            id = id,
+            createdAtMillis = System.currentTimeMillis(),
+            observedAtMillis = session.startedAtMillis,
+            source = EvidenceSource.LIVE,
+            audioFileName = audioName,
+            sampleRate = session.sampleRate,
+            durationSeconds = session.durationSeconds,
+            decision = if (candidates.isEmpty()) "NO_CONFIDENT_MATCH" else "MOVED_FOR_REVIEW",
+            decisionReason = if (candidates.isEmpty()) {
+                "No candidate passed the active confidence, margin, quality and tier gates. Moved from Log for manual review."
+            } else {
+                "The user moved this Log recording to Unknowns for manual review of the accepted rolling detections."
+            },
+            modelTopLabel = top?.label ?: "Unknown_or_unsupported",
+            modelTopConfidence = top?.audioScore ?: 0.0,
+            candidates = candidates,
+            qualityGrade = null,
+            qualityScore = null,
+            locationLabel = session.locationLabel,
+            latitude = session.latitude,
+            longitude = session.longitude,
+            region = session.region,
+            temperatureF = session.temperatureF,
+            weatherObservedAtMillis = session.weatherObservedAtMillis,
+            note = "Moved from Log ${session.id}. Listen to the full recording and add review notes before sharing or labeling."
         )
         replace(record)
         return record

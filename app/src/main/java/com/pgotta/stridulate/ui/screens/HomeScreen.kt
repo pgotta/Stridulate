@@ -58,7 +58,7 @@ fun HomeScreen(
     onOpenGuide: () -> Unit,
     onOpenSession: () -> Unit,
     onOpenCommunity: () -> Unit,
-    onOpenPacks: () -> Unit,
+    onOpenMap: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
     var showManualLocation by remember { mutableStateOf(false) }
@@ -248,7 +248,7 @@ fun HomeScreen(
                 if (unknownCount > 0) "$unknownCount SAVED" else "COMMUNITY ID",
                 onOpenCommunity
             )
-            HomeTile("⤓", "Sound packs", "OFFLINE MODELS", onOpenPacks)
+            HomeTile("🗺", "Range map", "LIKELY IN YOUR REGION", onOpenMap)
         }
     }
 }

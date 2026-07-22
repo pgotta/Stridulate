@@ -42,6 +42,14 @@ class ContextProfileRepository(context: Context, assetName: String = "context_pr
     }
 
     fun forLabel(label: String): SpeciesContextProfile? = profiles[label]
+
+    fun allProfiles(): Collection<SpeciesContextProfile> = profiles.values
+
+    fun supportsRegion(label: String, region: ContextRegion): Boolean {
+        val profile = profiles[label] ?: return false
+        if (region == ContextRegion.UNKNOWN) return false
+        return "NATIONWIDE" in profile.regions || profile.regions.any(region.profileTags::contains)
+    }
 }
 
 private fun JSONObject.optDoubleOrNull(name: String): Double? =

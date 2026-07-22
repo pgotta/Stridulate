@@ -9,11 +9,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,13 +19,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pgotta.stridulate.data.ReliabilityInfo
 import com.pgotta.stridulate.data.ReliabilityTier
-import com.pgotta.stridulate.data.SoundPack
 import com.pgotta.stridulate.data.Species
 import com.pgotta.stridulate.log.DetectionLogSession
 import com.pgotta.stridulate.log.LoggedSpeciesDetection
@@ -41,29 +36,119 @@ import java.util.Locale
 private val timeFmt = SimpleDateFormat("h:mm a", Locale.getDefault())
 private val dateFmt = SimpleDateFormat("EEE, MMM d", Locale.getDefault())
 
+private sealed interface PendingLogAction {
+    val session: DetectionLogSession
+    data class Delete(override val session: DetectionLogSession) : PendingLogAction
+    data class MoveToUnknowns(override val session: DetectionLogSession) : PendingLogAction
+}
+
 // ---------------- PERSISTENT LOG ----------------
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SessionScreen(
     sessions: List<DetectionLogSession>,
     resolveSpecies: (String) -> Species?,
     onBack: () -> Unit,
     onClear: () -> Unit,
+    onDeleteSession: (String) -> Unit,
+    onMoveToUnknowns: (String) -> Unit,
     onOpenGuide: (String) -> Unit,
     onPlaySegment: (String, Double, Double) -> Unit
 ) {
+    var pendingAction by remember { mutableStateOf<PendingLogAction?>(null) }
+    var showClearAll by remember { mutableStateOf(false) }
+
+    pendingAction?.let { action ->
+        val moving = action is PendingLogAction.MoveToUnknowns
+        AlertDialog(
+            onDismissRequest = { pendingAction = null },
+            title = {
+                Text(
+                    if (moving) "Move recording to Unknowns?" else "Delete this recording?",
+                    fontFamily = Fraunces,
+                    color = Parch
+                )
+            },
+            text = {
+                Text(
+                    if (moving) {
+                        "The complete WAV will be copied into Unknowns for listening, notes and optional community review, then removed from Log."
+                    } else {
+                        "This permanently removes the local WAV and its detection markers. This cannot be undone."
+                    },
+                    fontFamily = Inter,
+                    color = ParchDim,
+                    lineHeight = 19.sp
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val sessionId = action.session.id
+                        pendingAction = null
+                        if (moving) onMoveToUnknowns(sessionId) else onDeleteSession(sessionId)
+                    }
+                ) {
+                    Text(if (moving) "Move to Unknowns" else "Delete", color = if (moving) Biolume else Danger)
+                }
+            },
+            dismissButton = { TextButton(onClick = { pendingAction = null }) { Text("Cancel") } },
+            containerColor = Panel2
+        )
+    }
+
+    if (showClearAll) {
+        AlertDialog(
+            onDismissRequest = { showClearAll = false },
+            title = { Text("Clear every Log recording?", fontFamily = Fraunces, color = Parch) },
+            text = {
+                Text(
+                    "This permanently deletes all ${sessions.size} locally saved Log recordings. Recordings already moved to Unknowns are not affected.",
+                    fontFamily = Inter,
+                    color = ParchDim,
+                    lineHeight = 19.sp
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showClearAll = false; onClear() }) {
+                    Text("Clear all", color = Danger)
+                }
+            },
+            dismissButton = { TextButton(onClick = { showClearAll = false }) { Text("Cancel") } },
+            containerColor = Panel2
+        )
+    }
+
     Column(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
         AppBarRow("Log", "SAVED RECORDINGS", onBack = onBack, trailing = {
-            Text("⌫", color = Parch, fontSize = 16.sp,
-                modifier = Modifier.clickable(onClick = onClear).padding(8.dp))
+            if (sessions.isNotEmpty()) {
+                Text(
+                    "Clear all",
+                    color = Danger,
+                    fontFamily = JetBrainsMono,
+                    fontSize = 10.sp,
+                    modifier = Modifier.clickable { showClearAll = true }.padding(8.dp)
+                )
+            }
         })
         val speciesCount = sessions.flatMap { it.detections }.map { it.speciesId }.toSet().size
         Row(
-            Modifier.fillMaxWidth().padding(bottom = 14.dp),
+            Modifier.fillMaxWidth().padding(bottom = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text("Recording history", fontFamily = Fraunces, fontSize = 20.sp, color = Parch)
             Text("$speciesCount species · ${sessions.size} recordings", fontFamily = JetBrainsMono,
                 fontSize = 10.sp, color = Biolume)
+        }
+        if (sessions.isNotEmpty()) {
+            Text(
+                "Swipe right to review in Unknowns · swipe left to delete. Both actions require confirmation.",
+                fontFamily = JetBrainsMono,
+                fontSize = 9.sp,
+                color = Mute,
+                lineHeight = 14.sp,
+                modifier = Modifier.padding(bottom = 11.dp)
+            )
         }
         if (sessions.isEmpty()) {
             Column(
@@ -85,7 +170,48 @@ fun SessionScreen(
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 items(sessions, key = { it.id }) { session ->
-                    LogSessionCard(session, resolveSpecies, onOpenGuide, onPlaySegment)
+                    val dismissState = rememberSwipeToDismissBoxState(
+                        confirmValueChange = { value ->
+                            when (value) {
+                                SwipeToDismissBoxValue.StartToEnd -> pendingAction = PendingLogAction.MoveToUnknowns(session)
+                                SwipeToDismissBoxValue.EndToStart -> pendingAction = PendingLogAction.Delete(session)
+                                SwipeToDismissBoxValue.Settled -> Unit
+                            }
+                            false
+                        }
+                    )
+                    SwipeToDismissBox(
+                        state = dismissState,
+                        enableDismissFromStartToEnd = true,
+                        enableDismissFromEndToStart = true,
+                        backgroundContent = {
+                            val moving = dismissState.targetValue == SwipeToDismissBoxValue.StartToEnd
+                            Row(
+                                Modifier.fillMaxSize()
+                                    .background(if (moving) Color(0xFF17372C) else Color(0xFF4A211D), RoundedCornerShape(15.dp))
+                                    .padding(horizontal = 18.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = if (moving) Arrangement.Start else Arrangement.End
+                            ) {
+                                Text(
+                                    if (moving) "Move to Unknowns" else "Delete",
+                                    fontFamily = JetBrainsMono,
+                                    fontSize = 11.sp,
+                                    color = if (moving) Biolume else Color.White
+                                )
+                            }
+                        },
+                        content = {
+                            LogSessionCard(
+                                session = session,
+                                resolveSpecies = resolveSpecies,
+                                onOpenGuide = onOpenGuide,
+                                onPlaySegment = onPlaySegment,
+                                onMoveToUnknowns = { pendingAction = PendingLogAction.MoveToUnknowns(session) },
+                                onDelete = { pendingAction = PendingLogAction.Delete(session) }
+                            )
+                        }
+                    )
                 }
                 item { Spacer(Modifier.height(12.dp)) }
             }
@@ -98,7 +224,9 @@ private fun LogSessionCard(
     session: DetectionLogSession,
     resolveSpecies: (String) -> Species?,
     onOpenGuide: (String) -> Unit,
-    onPlaySegment: (String, Double, Double) -> Unit
+    onPlaySegment: (String, Double, Double) -> Unit,
+    onMoveToUnknowns: () -> Unit,
+    onDelete: () -> Unit
 ) {
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(Panel2)
@@ -123,7 +251,7 @@ private fun LogSessionCard(
         Spacer(Modifier.height(10.dp))
         if (session.detections.isEmpty()) {
             Text(
-                "The audio was saved for review, but every model output was below the active confidence, margin, quality, or tier rules.",
+                "Nothing passed the confidence, margin, quality and enabled-tier gates. The complete recording is still available below and can be moved to Unknowns for manual review.",
                 fontFamily = Inter, fontSize = 12.sp, color = ParchDim, lineHeight = 17.sp
             )
         } else {
@@ -141,6 +269,37 @@ private fun LogSessionCard(
                 }
             }
         }
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            LogActionButton("▶ Full audio", Modifier.weight(1f)) {
+                onPlaySegment(session.audioFilePath, 0.0, session.durationSeconds)
+            }
+            LogActionButton("Review", Modifier.weight(1f), accent = true, onClick = onMoveToUnknowns)
+            LogActionButton("Delete", Modifier.weight(0.8f), danger = true, onClick = onDelete)
+        }
+    }
+}
+
+@Composable
+private fun LogActionButton(
+    label: String,
+    modifier: Modifier = Modifier,
+    accent: Boolean = false,
+    danger: Boolean = false,
+    onClick: () -> Unit
+) {
+    val color = when {
+        danger -> Danger
+        accent -> Biolume
+        else -> ParchDim
+    }
+    Box(
+        modifier.clip(RoundedCornerShape(100.dp))
+            .border(BorderStroke(1.dp, color.copy(alpha = 0.55f)), RoundedCornerShape(100.dp))
+            .clickable(onClick = onClick).padding(horizontal = 6.dp, vertical = 7.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(label, fontFamily = JetBrainsMono, fontSize = 8.5.sp, color = color)
     }
 }
 
@@ -322,62 +481,6 @@ private fun BrowseRow(sp: Species, reliability: ReliabilityInfo, onClick: () -> 
             )
         }
         Text("›", color = Mute, fontSize = 18.sp)
-    }
-}
-
-// ---------------- PACKS ----------------
-@Composable
-fun PacksScreen(packs: List<SoundPack>, onBack: () -> Unit) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp)) {
-        AppBarRow("Sound packs", "OFFLINE MODELS", onBack = onBack,
-            status = "no account", statusOn = false)
-        Row(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
-                .background(Color(0x1466D59A))
-                .border(BorderStroke(1.dp, Color(0xFF2E4A2A)), RoundedCornerShape(14.dp))
-                .padding(16.dp)
-        ) {
-            Box(Modifier.size(40.dp).clip(RoundedCornerShape(10.dp))
-                .background(Color(0x2666D59A)), contentAlignment = Alignment.Center) {
-                Text("⤓", color = Biolume, fontSize = 20.sp)
-            }
-            Spacer(Modifier.width(13.dp))
-            Column {
-                Text("Everything runs on your device", fontFamily = Fraunces, fontSize = 16.sp, color = Parch)
-                Text("On-device identification is being built. Regional model packs will download here in a future update, so the app can name hundreds of species fully offline. Nothing to download yet.",
-                    fontFamily = Inter, fontSize = 12.5.sp, color = ParchDim, lineHeight = 18.sp)
-            }
-        }
-        Spacer(Modifier.height(16.dp))
-        packs.forEach { p ->
-            Row(
-                Modifier.fillMaxWidth().padding(bottom = 9.dp)
-                    .clip(RoundedCornerShape(13.dp)).background(Panel)
-                    .border(BorderStroke(1.dp, Line), RoundedCornerShape(13.dp)).padding(14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(Modifier.size(38.dp).clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFF1A2723)), contentAlignment = Alignment.Center) {
-                    Text(p.flag, fontSize = 18.sp)
-                }
-                Spacer(Modifier.width(13.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(p.name, fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 14.5.sp, color = Parch)
-                    Text(p.note + (p.size?.let { " · $it" } ?: ""),
-                        fontFamily = JetBrainsMono, fontSize = 10.5.sp, color = Mute)
-                }
-                // Disabled "coming soon" chip — no fake instant download.
-                Box(
-                    Modifier.clip(RoundedCornerShape(100.dp))
-                        .border(BorderStroke(1.dp, Line), RoundedCornerShape(100.dp))
-                        .padding(horizontal = 11.dp, vertical = 6.dp)
-                ) {
-                    Text("Coming soon",
-                        fontFamily = JetBrainsMono, fontSize = 10.5.sp, color = Mute)
-                }
-            }
-        }
-        Spacer(Modifier.height(24.dp))
     }
 }
 

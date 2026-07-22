@@ -60,7 +60,7 @@ import com.pgotta.stridulate.ui.screens.ErrorScreen
 import com.pgotta.stridulate.ui.screens.GuideScreen
 import com.pgotta.stridulate.ui.screens.HomeScreen
 import com.pgotta.stridulate.ui.screens.ListenScreen
-import com.pgotta.stridulate.ui.screens.PacksScreen
+import com.pgotta.stridulate.ui.screens.NearbyMapScreen
 import com.pgotta.stridulate.ui.screens.ResultScreen
 import com.pgotta.stridulate.ui.screens.SessionScreen
 import com.pgotta.stridulate.ui.screens.SettingsScreen
@@ -139,7 +139,7 @@ fun StridulateApp(
     var tab by rememberSaveable { mutableStateOf(Tab.Home) }
     var guideId by rememberSaveable { mutableStateOf<String?>(null) }
     var communityRecordId by rememberSaveable { mutableStateOf<String?>(null) }
-    var showPacks by rememberSaveable { mutableStateOf(false) }
+    var showMap by rememberSaveable { mutableStateOf(false) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
     var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
     var pendingCurrentContextImportUri by remember { mutableStateOf<Uri?>(null) }
@@ -157,7 +157,7 @@ fun StridulateApp(
             liveColumns.clear()
             guideId = null
             communityRecordId = null
-            showPacks = false
+            showMap = false
             showSettings = false
             tab = Tab.Home
             pendingImportUri = sharedUri
@@ -280,10 +280,11 @@ fun StridulateApp(
     }
 
     val atRoot = ui is UiState.Idle && guideId == null && communityRecordId == null &&
-        !showPacks && !showSettings && tab == Tab.Home
+        !showMap && !showSettings && tab == Tab.Home
     BackHandler(enabled = !atRoot) {
         // Covers Android system back for guide and result navigation.
         ReferenceSoundPlayer.stop()
+        RecordedSegmentPlayer.stop()
         when {
             ui is UiState.Listening -> vm.cancelListening()
             ui is UiState.Analyzing -> vm.cancelAnalysis()
@@ -291,7 +292,7 @@ fun StridulateApp(
             ui is UiState.Error -> vm.dismissResult()
             guideId != null -> guideId = null
             communityRecordId != null -> communityRecordId = null
-            showPacks -> showPacks = false
+            showMap -> showMap = false
             showSettings -> showSettings = false
             tab != Tab.Home -> tab = Tab.Home
         }
@@ -301,14 +302,14 @@ fun StridulateApp(
         containerColor = Ink,
         bottomBar = {
             val hide = ui is UiState.Listening || ui is UiState.Analyzing ||
-                ui is UiState.Result || guideId != null || communityRecordId != null || showPacks || showSettings
+                ui is UiState.Result || guideId != null || communityRecordId != null || showMap || showSettings
             if (!hide) {
                 BottomBar(tab) { picked ->
                     when (picked) {
                         Tab.Listen -> requestListen()
                         else -> {
                             tab = picked
-                            showPacks = false
+                            showMap = false
                             showSettings = false
                             guideId = null
                             communityRecordId = null
@@ -363,7 +364,10 @@ fun StridulateApp(
                                 CommunityRecordScreen(
                                     record = record,
                                     busyMessage = communityBusy,
-                                    onBack = { communityRecordId = null },
+                                    onBack = {
+                                        RecordedSegmentPlayer.stop()
+                                        communityRecordId = null
+                                    },
                                     onShareToINaturalist = { vm.requestIdentificationShare(record.id) },
                                     onLinkINaturalist = { vm.linkCommunityRecord(record.id, it) },
                                     onRefreshINaturalist = { vm.refreshCommunityRecord(record.id) },
@@ -381,6 +385,15 @@ fun StridulateApp(
                                             vm.showCommunityNotice(error.message ?: "Could not open the GitHub issue.")
                                         }
                                     },
+                                    onPlayRecording = {
+                                        RecordedSegmentPlayer.play(
+                                            context,
+                                            vm.communityRepository.audioFile(record).absolutePath,
+                                            0.0,
+                                            record.durationSeconds
+                                        )
+                                    },
+                                    onUpdateNote = { vm.updateCommunityNote(record.id, it) },
                                     onApproveTraining = { label, credit, rightsConfirmed ->
                                         vm.approveCommunityRecord(
                                             record.id, label, credit, rightsConfirmed
@@ -421,7 +434,14 @@ fun StridulateApp(
                             onBack = { showSettings = false },
                             onTierChanged = vm::setTierEnabled
                         )
-                        showPacks -> PacksScreen(vm.repo.packs) { showPacks = false }
+                        showMap -> NearbyMapScreen(
+                            species = vm.tier1Species,
+                            reliabilityFor = vm::reliabilityFor,
+                            profileFor = vm::contextProfileFor,
+                            observationContext = observationContext,
+                            onBack = { showMap = false },
+                            onOpenGuide = { guideId = it }
+                        )
                         else -> when (tab) {
                             Tab.Home -> HomeScreen(
                                 speciesCount = vm.tier1Species.size,
@@ -442,7 +462,7 @@ fun StridulateApp(
                                 },
                                 onOpenSession = { tab = Tab.Session },
                                 onOpenCommunity = { tab = Tab.Community },
-                                onOpenPacks = { showPacks = true },
+                                onOpenMap = { showMap = true },
                                 onOpenSettings = { showSettings = true }
                             )
                             Tab.Guide -> BrowseScreen(
@@ -456,6 +476,8 @@ fun StridulateApp(
                                 resolveSpecies = vm.repo::byId,
                                 onBack = { tab = Tab.Home },
                                 onClear = { vm.clearSession() },
+                                onDeleteSession = vm::deleteLogSession,
+                                onMoveToUnknowns = vm::moveLogSessionToUnknowns,
                                 onOpenGuide = { guideId = it },
                                 onPlaySegment = { file, start, end ->
                                     RecordedSegmentPlayer.play(context, file, start, end)

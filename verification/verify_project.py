@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline integrity and contract checks for Stridulate Android v2.4.0."""
+"""Offline integrity and contract checks for Stridulate Android v2.5.0."""
 from __future__ import annotations
 
 import hashlib
@@ -454,10 +454,10 @@ def main() -> int:
         fail(f"Unexpected TFLite output tensor: {tflite['output']}")
 
     gradle_text = (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")
-    if 'versionName = "2.4.0"' not in gradle_text:
-        fail("App versionName is not 2.4.0")
-    if not re.search(r"versionCode\s*=\s*13\b", gradle_text):
-        fail("App versionCode is not 13")
+    if 'versionName = "2.5.0"' not in gradle_text:
+        fail("App versionName is not 2.5.0")
+    if not re.search(r"versionCode\s*=\s*14\b", gradle_text):
+        fail("App versionCode is not 14")
 
     classifier_text = (SRC / "com/pgotta/stridulate/classifier/TfLiteClassifier.kt").read_text(encoding="utf-8")
     decision_text = (SRC / "com/pgotta/stridulate/classifier/OpenSetDecision.kt").read_text(encoding="utf-8")
@@ -480,6 +480,11 @@ def main() -> int:
     community_share_text = (SRC / "com/pgotta/stridulate/community/CommunityShare.kt").read_text(encoding="utf-8")
     inaturalist_client_text = (SRC / "com/pgotta/stridulate/community/INaturalistClient.kt").read_text(encoding="utf-8")
     community_screen_text = (SRC / "com/pgotta/stridulate/ui/screens/CommunityScreen.kt").read_text(encoding="utf-8")
+    other_screens_text = (SRC / "com/pgotta/stridulate/ui/screens/OtherScreens.kt").read_text(encoding="utf-8")
+    nearby_map_text = (SRC / "com/pgotta/stridulate/ui/screens/NearbyMapScreen.kt").read_text(encoding="utf-8")
+    log_repo_text = (SRC / "com/pgotta/stridulate/log/DetectionLogRepository.kt").read_text(encoding="utf-8")
+    reference_audio_text = (SRC / "com/pgotta/stridulate/audio/ReferenceSoundPlayer.kt").read_text(encoding="utf-8")
+    context_profiles_text = (SRC / "com/pgotta/stridulate/environment/ContextProfiles.kt").read_text(encoding="utf-8")
     file_paths_text = (ROOT / "app/src/main/res/xml/file_paths.xml").read_text(encoding="utf-8")
     community_workflow_text = (ROOT / ".github/workflows/community-identification-sync.yml").read_text(encoding="utf-8")
     community_sync_text = (ROOT / "tools/sync_inaturalist_issues.py").read_text(encoding="utf-8")
@@ -522,6 +527,9 @@ def main() -> int:
             fail(f"Acoustic compatibility guard is missing: {phrase}")
     if "Likely match" in result_text:
         fail("Unsafe Likely match wording remains in the result UI")
+    for phrase in ("DOG_DAY_LINNE_PAIR", "CONFUSABLE_CICADA_MIN_CONFIDENCE = 0.93", "CONFUSABLE_CICADA_MIN_MARGIN = 0.35"):
+        if phrase not in decision_text:
+            fail(f"Dog-day/Linne confusion guard is missing: {phrase}")
 
     if "geocoding-api.open-meteo.com/v1/search" not in environment_text:
         fail("Manual city/ZIP geocoding integration is missing")
@@ -587,6 +595,30 @@ def main() -> int:
         fail("Observation context is not excluded from backup/device transfer")
     if "FeatureMatchClassifier.kt" in [path.name for path in (SRC / "com/pgotta/stridulate/classifier").glob("*.kt")]:
         fail("Unused heuristic fallback classifier is still present")
+
+    # Manageable Log, local Unknowns review, and conservative regional map.
+    for phrase in ("fun delete(sessionId", "observationContext: ObservationContext", 'put("schema", 2)'):
+        if phrase not in log_repo_text:
+            fail(f"Persistent Log management is missing: {phrase}")
+    for phrase in ("SwipeToDismissBox", "Move to Unknowns", "Clear all", "Full audio"):
+        if phrase not in other_screens_text:
+            fail(f"Safe Log action UI is missing: {phrase}")
+    for phrase in ("importLogSession", "Moved from Log", "updateNote"):
+        if phrase not in community_repo_text:
+            fail(f"Log-to-Unknowns review workflow is missing: {phrase}")
+    for phrase in ("LISTEN AND REVIEW", "Play full recording", "Private review notes"):
+        if phrase not in community_screen_text:
+            fail(f"Unknowns review UI is missing: {phrase}")
+    for phrase in ("Range map", "Verified + Good", "Active now", "not an exact range boundary"):
+        if phrase not in nearby_map_text:
+            fail(f"Conservative regional map is missing: {phrase}")
+    if "supportsRegion" not in context_profiles_text or "Range map" not in home_text:
+        fail("Sound Packs were not replaced by the profile-backed regional map")
+    if "Sound packs" in home_text or "PacksScreen" in main_activity_text:
+        fail("Deprecated Sound Packs UI is still reachable")
+    for phrase in ("community recordings", "Repeated taps cycle", "background noise may be present"):
+        if phrase not in reference_audio_text:
+            fail(f"Community recording quality disclosure/cycling is missing: {phrase}")
 
     # Community unknown -> iNaturalist -> human-reviewed training contribution loop.
     for required_phrase in (
@@ -673,9 +705,10 @@ def main() -> int:
     print("PASS: exact epoch-19 67-class assets and checksums")
     print(f"PASS: labels={len(labels)}; supported_species={len(labels) - 1}; verified={len(EXPECTED_VERIFIED)}; good={len(EXPECTED_GOOD)}; experimental={len(EXPECTED_EXPERIMENTAL)}; not_ready={len(EXPECTED_NOT_READY)}")
     print(f"PASS: TFLite input={tflite['input']} output={tflite['output']}")
-    print("PASS: dynamic output count, original calibration plus precision-first open-set gate, top-three UI, version 2.4.0")
+    print("PASS: dynamic output count, original calibration plus precision-first open-set gate, top-three UI, version 2.5.0")
     print("PASS: non-blocking ten-minute background context refresh, on-demand refresh, 30-minute scoring cutoff, two-hour offline fallback")
     print("PASS: imported-recording context safety, on-device recording-quality assessment, privacy exclusions")
+    print("PASS: manageable Log, Log-to-Unknowns review, profile-backed regional map, community recording disclosure")
     print("PASS: local unknown archive, iNaturalist linking/refresh, GitHub tracking, human-reviewed CC BY 4.0 export")
     print("PASS: Gradle wrapper JAR structure")
     return 0

@@ -103,7 +103,7 @@ fun CommunityArchiveScreen(
             Text("COMMUNITY IDENTIFICATION LOOP", fontFamily = JetBrainsMono, color = Amber, fontSize = 10.sp, letterSpacing = 1.5.sp)
             Spacer(Modifier.height(7.dp))
             Text(
-                "Save an unresolved WAV, share it into iNaturalist, then paste the resulting observation link here. Stridulate can check the community taxon later. A human must still approve the label before export for training.",
+                "Move any Log recording here for manual review. Listen to the complete WAV, add notes, and optionally share it to iNaturalist for community identification. Nothing is uploaded unless you choose Share.",
                 fontFamily = Inter,
                 color = ParchDim,
                 fontSize = 12.5.sp,
@@ -127,7 +127,7 @@ fun CommunityArchiveScreen(
                 Text("No unknown recordings saved", fontFamily = Fraunces, color = Parch, fontSize = 20.sp)
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "After a No confident match or Possible match, save the WAV from the result screen.",
+                    "Move a recording from Log, or save a No confident match from the result screen. Unknowns keeps the full WAV available for listening, notes and optional community review.",
                     fontFamily = Inter,
                     color = Mute,
                     fontSize = 12.5.sp,
@@ -194,6 +194,8 @@ fun CommunityRecordScreen(
     onRefreshINaturalist: () -> Unit,
     onOpenINaturalist: () -> Unit,
     onOpenGitHubTracking: () -> Unit,
+    onPlayRecording: () -> Unit,
+    onUpdateNote: (String) -> Unit,
     onApproveTraining: (label: String, credit: String, rightsConfirmed: Boolean) -> Unit,
     onExportBundle: () -> Unit,
     onDelete: () -> Unit
@@ -203,6 +205,7 @@ fun CommunityRecordScreen(
     }
     var showApprove by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
+    var reviewNote by remember(record.id, record.note) { mutableStateOf(record.note.orEmpty()) }
 
     if (showApprove) {
         var label by remember(record.communityTaxonScientificName) {
@@ -312,6 +315,34 @@ fun CommunityRecordScreen(
             ValueLine("Quality", listOfNotNull(record.qualityGrade, record.qualityScore?.let { "$it/100" }).joinToString(" · ").ifBlank { "Not measured" })
             ValueLine("Context", record.locationLabel ?: record.region ?: "Audio only")
             record.temperatureF?.let { ValueLine("Temperature", String.format(Locale.US, "%.0f°F", it)) }
+        }
+
+        Spacer(Modifier.height(12.dp))
+        SectionCard("LISTEN AND REVIEW") {
+            PrimaryButton("▶ Play full recording", onPlayRecording, Modifier.fillMaxWidth())
+            Spacer(Modifier.height(10.dp))
+            OutlinedTextField(
+                value = reviewNote,
+                onValueChange = { reviewNote = it },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Private review notes") },
+                placeholder = { Text("What did you hear? Suspected species, background noise, time in the recording…") },
+                minLines = 3
+            )
+            Spacer(Modifier.height(8.dp))
+            GhostButton(
+                "Save review note",
+                { onUpdateNote(reviewNote) },
+                Modifier.fillMaxWidth()
+            )
+            Text(
+                "Notes and audio remain on this device unless you explicitly share or export them.",
+                fontFamily = Inter,
+                color = Mute,
+                fontSize = 10.5.sp,
+                lineHeight = 15.sp,
+                modifier = Modifier.padding(top = 7.dp)
+            )
         }
 
         Spacer(Modifier.height(12.dp))
