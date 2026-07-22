@@ -159,8 +159,7 @@ fun SessionScreen(
                 Text("🦗", fontSize = 34.sp)
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    "No saved recordings yet.
-Tap Listen to start rolling identification.",
+                    "No saved recordings yet.\nTap Listen to start rolling identification.",
                     fontFamily = JetBrainsMono,
                     fontSize = 12.sp,
                     color = Mute,
