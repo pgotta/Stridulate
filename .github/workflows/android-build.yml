@@ -69,6 +69,15 @@ jobs:
           path: apply-diagnostics.txt
           if-no-files-found: warn
 
+      - name: Upload staged patch pieces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stridulate-v25-patch-pieces
+          path: .github/patch-v25/
+          if-no-files-found: warn
+          retention-days: 1
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
