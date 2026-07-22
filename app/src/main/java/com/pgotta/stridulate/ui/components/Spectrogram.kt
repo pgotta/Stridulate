@@ -7,6 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import com.pgotta.stridulate.ui.theme.SpecBg
 import kotlin.math.exp
 import kotlin.math.pow
@@ -87,7 +88,11 @@ fun ProceduralSpectrogram(kind: String, modifier: Modifier = Modifier, seed: Int
  * bottom→top magnitude array). Used for imported-clip and live results.
  */
 @Composable
-fun RealSpectrogram(columns: List<FloatArray>, modifier: Modifier = Modifier) {
+fun RealSpectrogram(
+    columns: List<FloatArray>,
+    modifier: Modifier = Modifier,
+    markerFractions: List<Float> = emptyList()
+) {
     Canvas(modifier = modifier) {
         val w = size.width; val h = size.height
         drawRect(SpecBg, size = Size(w, h))
@@ -105,6 +110,16 @@ fun RealSpectrogram(columns: List<FloatArray>, modifier: Modifier = Modifier) {
                     size = Size(cw + 0.6f, rowH + 0.6f)
                 )
             }
+        }
+        markerFractions.forEach { fraction ->
+            val x = fraction.coerceIn(0f, 1f) * w
+            drawLine(
+                color = Color(0xFFF0B44D),
+                start = Offset(x, 0f),
+                end = Offset(x, h),
+                strokeWidth = 2.5f,
+                cap = StrokeCap.Round
+            )
         }
     }
 }

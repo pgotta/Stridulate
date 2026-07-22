@@ -4,4 +4,8 @@
     <exclude domain="sharedpref" path="observation_context_v2.xml" />
     <!-- Saved community WAV files and linked observation metadata remain local-only. -->
     <exclude domain="file" path="community_observations/" />
+    <!-- Detection logs contain private microphone recordings and stay local-only. -->
+    <exclude domain="file" path="detection_log/" />
+    <!-- Downloaded field-guide photos can be fetched again. -->
+    <exclude domain="file" path="species_photos/" />
 </full-backup-content>

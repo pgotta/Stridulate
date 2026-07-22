@@ -12,9 +12,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -56,7 +58,8 @@ fun HomeScreen(
     onOpenGuide: () -> Unit,
     onOpenSession: () -> Unit,
     onOpenCommunity: () -> Unit,
-    onOpenPacks: () -> Unit
+    onOpenPacks: () -> Unit,
+    onOpenSettings: () -> Unit
 ) {
     var showManualLocation by remember { mutableStateOf(false) }
     var manualLocation by remember(observationContext.manualQuery) {
@@ -107,13 +110,19 @@ fun HomeScreen(
             .padding(horizontal = 20.dp)
             .padding(top = 24.dp, bottom = 28.dp)
     ) {
-        Text(
-            "LOCAL INSECT SOUND ID",
-            color = Amber,
-            fontFamily = JetBrainsMono,
-            fontSize = 10.5.sp,
-            letterSpacing = 2.6.sp
-        )
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "LOCAL INSECT SOUND ID",
+                color = Amber,
+                fontFamily = JetBrainsMono,
+                fontSize = 10.5.sp,
+                letterSpacing = 2.6.sp,
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(onClick = onOpenSettings) {
+                Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = ParchDim)
+            }
+        }
         Spacer(Modifier.height(10.dp))
         Text(
             "Stridulate",
@@ -226,8 +235,8 @@ fun HomeScreen(
             HomeTile("📖", "Field guide", "$speciesCount TIER 1 SPECIES", onOpenGuide)
             HomeTile(
                 "🌙",
-                "Tonight",
-                if (sessionCount > 0) "$sessionCount HEARD" else "SESSION LOG",
+                "Log",
+                if (sessionCount > 0) "$sessionCount HEARD" else "SAVED RECORDINGS",
                 onOpenSession
             )
         }

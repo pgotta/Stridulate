@@ -1,9 +1,12 @@
 package com.pgotta.stridulate.data
 
+import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
+import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
@@ -53,18 +56,102 @@ object SpeciesPhoto {
     private val photoCache = HashMap<String, PhotoInfo?>()
     private val observationCache = HashMap<String, ObservationSample>()
 
-    /** Resolve a correctly matched field-guide photo for a species. */
-    suspend fun photoFor(species: Species): PhotoInfo? = withContext(Dispatchers.IO) {
+    /**
+     * Resolve and permanently cache a correctly matched field-guide photo.
+     * The network is used only until the image and attribution metadata have
+     * been saved in the app's private files directory.
+     */
+    suspend fun photoFor(context: Context, species: Species): PhotoInfo? = withContext(Dispatchers.IO) {
+        val app = context.applicationContext
         val key = normalize(species.latin)
         synchronized(photoCache) {
             if (photoCache.containsKey(key)) return@withContext photoCache[key]
         }
 
-        val taxon = resolveTaxon(species.latin)
-        val result = taxon?.photo ?: wikipediaPhoto(species.latin)
+        cachedPhoto(app, key)?.let { cached ->
+            synchronized(photoCache) { photoCache[key] = cached }
+            return@withContext cached
+        }
 
+        val remote = resolveTaxon(species.latin)?.photo ?: wikipediaPhoto(species.latin)
+        val result = remote?.let { downloadPhoto(app, key, it) }
         if (result != null) synchronized(photoCache) { photoCache[key] = result }
         result
+    }
+
+    suspend fun prefetch(context: Context, species: List<Species>) = withContext(Dispatchers.IO) {
+        species.forEach { photoFor(context, it) }
+    }
+
+    private fun cachedPhoto(context: Context, key: String): PhotoInfo? {
+        val prefs = context.getSharedPreferences(PHOTO_PREFS, Context.MODE_PRIVATE)
+        val raw = prefs.getString(key, null) ?: return null
+        return runCatching {
+            val json = JSONObject(raw)
+            val file = File(json.getString("file"))
+            if (!file.exists() || file.length() <= 0L) return null
+            PhotoInfo(
+                imageUrl = file.toURI().toString(),
+                attribution = json.optString("attribution", "Community photo"),
+                licenseCode = json.optString("license").ifBlank { null },
+                sourceName = json.optString("source_name", "iNaturalist"),
+                sourceUrl = json.optString("source_url").ifBlank { null }
+            )
+        }.getOrNull()
+    }
+
+    private fun downloadPhoto(context: Context, key: String, remote: PhotoInfo): PhotoInfo? {
+        val directory = File(context.filesDir, "species_photos").apply { mkdirs() }
+        val safe = key.replace(Regex("[^a-z0-9]+"), "_").trim('_')
+        val finalFile = File(directory, "$safe.image")
+        val tempFile = File(directory, "$safe.tmp")
+        var connection: HttpURLConnection? = null
+        return try {
+            connection = (URL(remote.imageUrl).openConnection() as HttpURLConnection).apply {
+                connectTimeout = 12_000
+                readTimeout = 20_000
+                instanceFollowRedirects = true
+                setRequestProperty("User-Agent", "Stridulate/2.4 Android (field-guide photo cache)")
+                setRequestProperty("Accept", "image/*")
+            }
+            if (connection.responseCode !in 200..299) return null
+            val declared = connection.contentLengthLong
+            if (declared > MAX_PHOTO_BYTES) return null
+            connection.inputStream.use { input ->
+                FileOutputStream(tempFile).use { output ->
+                    val buffer = ByteArray(16 * 1024)
+                    var total = 0L
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        total += count
+                        if (total > MAX_PHOTO_BYTES) throw IllegalStateException("Photo is too large")
+                        output.write(buffer, 0, count)
+                    }
+                }
+            }
+            if (tempFile.length() <= 0L) return null
+            if (finalFile.exists()) finalFile.delete()
+            if (!tempFile.renameTo(finalFile)) {
+                tempFile.copyTo(finalFile, overwrite = true)
+                tempFile.delete()
+            }
+            val local = remote.copy(imageUrl = finalFile.toURI().toString())
+            val metadata = JSONObject()
+                .put("file", finalFile.absolutePath)
+                .put("attribution", remote.attribution)
+                .put("license", remote.licenseCode ?: "")
+                .put("source_name", remote.sourceName)
+                .put("source_url", remote.sourceUrl ?: "")
+            context.getSharedPreferences(PHOTO_PREFS, Context.MODE_PRIVATE)
+                .edit().putString(key, metadata.toString()).apply()
+            local
+        } catch (_: Exception) {
+            tempFile.delete()
+            null
+        } finally {
+            connection?.disconnect()
+        }
     }
 
     /**
@@ -250,6 +337,9 @@ object SpeciesPhoto {
 
     private fun normalize(value: String): String =
         value.trim().lowercase().replace('_', ' ').replace(Regex("\\s+"), " ")
+
+    private const val PHOTO_PREFS = "species_photo_cache_v1"
+    private const val MAX_PHOTO_BYTES = 8L * 1024L * 1024L
 
     private fun JSONObject.firstNonBlank(vararg keys: String): String? {
         for (key in keys) {

@@ -2,4 +2,4 @@ Run: python verification\verify_project.py
 Run: python verification\test_open_set_gate.py
 Expected: all PASS lines.
 
-Version 2.3.2 additionally verifies that location/weather refresh cannot block microphone startup.
+Version 2.4.0 additionally verifies that location/weather refresh cannot block microphone startup.

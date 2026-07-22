@@ -13,8 +13,9 @@ android {
         applicationId = "com.pgotta.stridulate"
         minSdk = 26            // Android 8.0 — needed for MediaCodec async + AudioRecord features
         targetSdk = 34
-        versionCode = 12
-        versionName = "2.3.2"
+        // Rolling detection, waveform event replay, persistent Log, tier controls, and cached species photos.
+        versionCode = 13
+        versionName = "2.4.0"
         vectorDrawables { useSupportLibrary = true }
     }
 

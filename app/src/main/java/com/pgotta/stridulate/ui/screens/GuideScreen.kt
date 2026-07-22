@@ -70,7 +70,7 @@ fun GuideScreen(
             photoLookupDone = false
             photoRendered = false
             photoLoadFailed = false
-            photoInfo = SpeciesPhoto.photoFor(sp)
+            photoInfo = SpeciesPhoto.photoFor(context, sp)
             photoLookupDone = true
         }
 
