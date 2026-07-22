@@ -14,8 +14,8 @@ android {
         minSdk = 26            // Android 8.0 — needed for MediaCodec async + AudioRecord features
         targetSdk = 34
         // Rolling detection, waveform event replay, persistent Log, tier controls, and cached species photos.
-        versionCode = 13
-        versionName = "2.4.0"
+        versionCode = 14
+        versionName = "2.4.1"
         vectorDrawables { useSupportLibrary = true }
     }
 
