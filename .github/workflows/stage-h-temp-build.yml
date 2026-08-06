@@ -1,0 +1,46 @@
+name: Temporary Perch V2 Android conversion probe
+
+on:
+  push:
+    branches:
+      - perch-v2-tflite-probe-temp
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check out isolated probe branch
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install exact research runtime
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "birdnet[repro]==0.2.16"
+
+      - name: Download exact Perch V2 and test TFLite conversion
+        run: python tools/perch_v2_tflite_probe.py
+
+      - name: Show conversion report
+        if: always()
+        run: |
+          cat perch-v2-mobile-probe/PERCH_V2_MOBILE_PROBE.md || true
+          du -ah perch-v2-mobile-probe || true
+
+      - name: Upload conversion evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perch-v2-mobile-conversion-probe
+          path: perch-v2-mobile-probe/
+          retention-days: 1
+          if-no-files-found: error
