@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - perch-v2-tflite-probe-temp
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -14,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
-      - name: Check out isolated probe branch
+      - name: Check out isolated probe source
         uses: actions/checkout@v4
 
       - name: Set up Python 3.12
