@@ -37,8 +37,6 @@ android {
     packaging {
         resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" }
     }
-    // The legacy TFLite asset remains uncompressed for rollback/audit compatibility.
-    androidResources { noCompress += "tflite" }
 }
 
 dependencies {
@@ -59,9 +57,6 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.1")
     implementation("io.coil-kt:coil-compose:2.7.0")
-
-    // Retained for legacy source/assets while v3's active classifier is frozen J.1/Perch ONNX.
-    implementation("org.tensorflow:tensorflow-lite:2.16.1")
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.26.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
