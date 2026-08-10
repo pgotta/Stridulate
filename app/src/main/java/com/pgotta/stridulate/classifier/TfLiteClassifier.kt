@@ -1,102 +1,126 @@
 package com.pgotta.stridulate.classifier
 
+import ai.onnxruntime.OnnxTensor
+import ai.onnxruntime.OrtEnvironment
+import ai.onnxruntime.OrtSession
+import ai.onnxruntime.TensorInfo
 import android.content.Context
 import com.pgotta.stridulate.audio.MeasuredSignature
+import com.pgotta.stridulate.data.AcceptanceRule
+import com.pgotta.stridulate.data.OpenSetSafetyPolicy
+import com.pgotta.stridulate.data.ReliabilityInfo
+import com.pgotta.stridulate.data.ReliabilityTier
 import com.pgotta.stridulate.data.Species
 import com.pgotta.stridulate.data.SpeciesReliabilityRepository
-import org.json.JSONObject
-import org.tensorflow.lite.DataType
-import org.tensorflow.lite.Interpreter
-import java.io.FileInputStream
+import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.nio.MappedByteBuffer
-import java.nio.channels.FileChannel
 import java.security.MessageDigest
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
+import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.exp
+import kotlin.math.floor
+import kotlin.math.max
+import kotlin.math.sin
 
-/** Runs the 67-class epoch-19 FLOAT32 TFLite model fully offline. */
+/**
+ * Compatibility entry point retained so the existing ViewModel does not need a
+ * migration. Despite the historical class name, v3 runs the frozen Stage J.1
+ * Perch 2.0 + Stage-D affine/calibration path through ONNX Runtime.
+ *
+ * Runtime files are intentionally not committed or packed into the APK. The v3
+ * build/install helper verifies and stages Perch, the affine head and calibration
+ * into files/models without clearing app data.
+ */
 class TfLiteClassifier(
     context: Context,
     species: List<Species>,
-    modelAsset: String = "insect_model.tflite",
-    labelsAsset: String = "labels.txt",
-    metadataAsset: String = "model_meta.json",
-    normalizationAsset: String = "normalization.json",
+    @Suppress("UNUSED_PARAMETER") modelAsset: String = "insect_model.tflite",
+    @Suppress("UNUSED_PARAMETER") labelsAsset: String = "labels.txt",
+    @Suppress("UNUSED_PARAMETER") metadataAsset: String = "model_meta.json",
+    @Suppress("UNUSED_PARAMETER") normalizationAsset: String = "normalization.json",
     reliabilityAsset: String = "android_reliability.json"
 ) : InsectClassifier {
 
-    private val executor = Executors.newSingleThreadExecutor { task ->
-        Thread(task, "Stridulate-TFLite")
+    private val app = context.applicationContext
+    private val executor = Executors.newSingleThreadExecutor { task -> Thread(task, "Stridulate-J1-Perch") }
+    private val labels = app.assets.open(LABELS_ASSET).bufferedReader().useLines { lines ->
+        lines.map(String::trim).filter(String::isNotBlank).toList()
     }
+    private val calibration = J1Calibration.load(File(app.filesDir, CALIBRATION_RELATIVE_PATH), labels)
+    private val affine = J1Affine.load(File(app.filesDir, AFFINE_RELATIVE_PATH), labels.size)
+    private val reliabilityRepository = SpeciesReliabilityRepository(app, reliabilityAsset)
+    private val speciesByLatin = species.associateBy { normalizeLatin(it.latin) }
+    private val reliabilityByLabel = labels.associateWith(::j1Reliability)
 
-    private val metadata = ModelMetadata.load(context, metadataAsset)
-    private val labelBytes = context.assets.open(labelsAsset).use { it.readBytes() }
-    private val labels: List<String> = labelBytes.toString(Charsets.UTF_8)
-        .lineSequence().map { it.trim() }.filter { it.isNotEmpty() }.toList()
-
-    private fun normLatin(value: String): String =
-        value.lowercase().replace('_', ' ').trim().replace(Regex("\\s+"), " ")
-
-    private val speciesByLatin = species.associateBy { normLatin(it.latin) }
-    private val reliabilityRepository = SpeciesReliabilityRepository(context, reliabilityAsset)
-    private val normalizationFile = context.assets.open(normalizationAsset).bufferedReader().use { JSONObject(it.readText()) }
-    private val mel = MelSpectrogram(metadata)
-    private val interpreter: Interpreter
-    private var outputElementCount: Int = 0
+    private val env = OrtEnvironment.getEnvironment("Stridulate-J1")
+    private val session: OrtSession
+    private val inputName: String
+    private val globalOutputName: String
 
     override val policy = ClassificationPolicy(
-        unknownLabel = metadata.unknownLabel,
-        minimumConfidence = metadata.minimumConfidence,
-        minimumMargin = metadata.minimumMargin,
-        reliabilityByLabel = labels.associateWith(reliabilityRepository::forLabel),
-        openSetSafetyPolicy = reliabilityRepository.openSetSafetyPolicy
+        unknownLabel = "Unknown_or_unsupported",
+        minimumConfidence = 0.0,
+        minimumMargin = 0.0,
+        reliabilityByLabel = reliabilityByLabel,
+        openSetSafetyPolicy = OpenSetSafetyPolicy(
+            enabled = true,
+            fieldTestMode = true,
+            strongMinimumConfidence = 0.95,
+            strongMinimumMargin = 0.10,
+            strongVerifiedOnly = false,
+            strongRequiresGoodQuality = true,
+            strongRequiresAcousticProfile = false,
+            rulesByTier = ReliabilityTier.entries.associateWith { AcceptanceRule(0.0, 0.0, false) },
+            speciesOverrides = emptyMap()
+        )
     )
-    override val classCount: Int get() = outputElementCount
 
-    val backendName: String = "Epoch 19 · 67-class · CPU · FLOAT32"
-    val datasetName: String get() = metadata.dataset
+    override val classCount: Int get() = labels.size
+    val backendName: String = "Frozen J.1 · Perch 2.0 · 88 species · ONNX CPU"
+    val datasetName: String = "Stage D + frozen Stage J.1 calibration"
 
     init {
-        require(labelsChecksumMatches(labelBytes, metadata.labelsSha256)) {
-            "labels.txt does not match the active model metadata checksum."
+        require(labels.size == CLASS_COUNT && labels.distinct().size == CLASS_COUNT) {
+            "Frozen J.1 requires exactly $CLASS_COUNT unique labels; got ${labels.size}."
         }
-        require(kotlin.math.abs(normalizationFile.getDouble("mel_mean") - metadata.normalizationMean) < 1e-12 &&
-            kotlin.math.abs(normalizationFile.getDouble("mel_std") - metadata.normalizationStd) < 1e-12) {
-            "normalization.json does not match the active model metadata."
-        }
-        require(labels.size == metadata.classes) {
-            "Metadata declares ${metadata.classes} classes, but labels.txt has ${labels.size}."
-        }
-        require(labels.getOrNull(metadata.unknownIndex) == metadata.unknownLabel) {
-            "The unknown label/index contract does not match labels.txt."
-        }
-        require(reliabilityRepository.modelLabelsSha256.equals(metadata.labelsSha256, ignoreCase = true)) {
-            "android_reliability.json does not match the model labels checksum."
-        }
-        require(reliabilityRepository.labels == labels.toSet()) {
-            "android_reliability.json does not cover the exact ordered model label set."
-        }
-        require(reliabilityRepository.verifiedLabels.isNotEmpty() &&
-            reliabilityRepository.verifiedLabels.all { it in labels && it != metadata.unknownLabel }) {
-            "android_reliability.json has no valid Verified classes."
-        }
-        labels.filterNot { it == metadata.unknownLabel }.forEach { label ->
-            require(speciesByLatin.containsKey(normLatin(label))) {
-                "No field-guide entry exists for model label $label."
+        labels.forEach { label ->
+            require(speciesByLatin.containsKey(normalizeLatin(label))) {
+                "No field-guide entry exists for frozen J.1 label $label."
             }
         }
-
-        val model = loadModelFile(context, modelAsset)
-        interpreter = try {
-            executor.submit<Interpreter> {
-                Interpreter(
-                    model,
-                    Interpreter.Options().apply { setNumThreads(4) }
-                ).also(::validateContract)
+        val model = File(app.filesDir, MODEL_RELATIVE_PATH)
+        verifyPerchModel(model)
+        try {
+            val opened = executor.submit<Triple<OrtSession, String, String>> {
+                val options = OrtSession.SessionOptions()
+                try {
+                    val s = env.createSession(model.absolutePath, options)
+                    val input = s.inputNames.singleOrNull()
+                        ?: throw IllegalStateException("Perch must expose exactly one input.")
+                    val inputInfo = s.inputInfo[input]?.info as? TensorInfo
+                        ?: throw IllegalStateException("Perch input is not a float tensor.")
+                    val inputShape = inputInfo.shape
+                    require(inputShape.size == 2 && inputShape.last() == WINDOW_SAMPLES.toLong()) {
+                        "Unexpected Perch input shape: ${inputShape.toList()}"
+                    }
+                    val global = s.outputInfo.entries.filter { (_, node) ->
+                        val info = node.info as? TensorInfo ?: return@filter false
+                        info.shape.filter { it > 0 }.fold(1L) { a, b -> a * b } == EMBEDDING_DIM.toLong()
+                    }.map { it.key }
+                    require(global.size == 1) {
+                        "Could not identify unique 1536-value Perch global embedding output."
+                    }
+                    Triple(s, input, global.single())
+                } finally {
+                    options.close()
+                }
             }.get()
+            session = opened.first
+            inputName = opened.second
+            globalOutputName = opened.third
         } catch (e: ExecutionException) {
             executor.shutdownNow()
             val cause = e.cause ?: e
@@ -107,148 +131,331 @@ class TfLiteClassifier(
         }
     }
 
-    private fun validateContract(runtime: Interpreter) {
-        val input = runtime.getInputTensor(0)
-        val output = runtime.getOutputTensor(0)
-        val inputShape = input.shape().toList()
-        val outputShape = output.shape().toList()
-
-        require(input.dataType() == DataType.FLOAT32) {
-            "Model input is ${input.dataType()}, expected FLOAT32."
-        }
-        require(output.dataType() == DataType.FLOAT32) {
-            "Model output is ${output.dataType()}, expected FLOAT32."
-        }
-        require(inputShape == metadata.inputShape) {
-            "Model input shape is $inputShape; v5 metadata requires ${metadata.inputShape}."
-        }
-        require(outputShape == metadata.outputShape) {
-            "Model output shape is $outputShape; v5 metadata requires ${metadata.outputShape}."
-        }
-
-        // Derived from the actual output tensor: never assume 66 or any other class count.
-        outputElementCount = outputShape.fold(1) { product, dimension -> product * dimension }
-        require(outputShape.firstOrNull() == 1 && outputElementCount == labels.size) {
-            "Model emits $outputElementCount values, but v5 labels contain ${labels.size}."
-        }
-    }
-
-    private fun loadModelFile(context: Context, asset: String): MappedByteBuffer {
-        context.assets.openFd(asset).use { afd ->
-            FileInputStream(afd.fileDescriptor).channel.use { channel ->
-                return channel.map(
-                    FileChannel.MapMode.READ_ONLY,
-                    afd.startOffset,
-                    afd.declaredLength
-                )
-            }
-        }
-    }
-
-    /** A hand-measured signature alone is insufficient for this neural model. */
     override fun classify(signature: MeasuredSignature): List<Candidate> = emptyList()
 
-    override fun classify(
-        pcm: FloatArray,
-        sampleRate: Int,
-        signature: MeasuredSignature
-    ): List<Candidate> {
-        val melWindows = mel.fromPcmWindows(pcm, sampleRate)
-        require(melWindows.isNotEmpty()) { "The model preprocessor produced no audio windows." }
-        melWindows.forEach { melSpec ->
-            require(melSpec.size == metadata.nMels && melSpec.firstOrNull()?.size == metadata.inputShape[2]) {
-                "Preprocessor produced ${melSpec.size}x${melSpec.firstOrNull()?.size ?: 0}; " +
-                    "model requires ${metadata.nMels}x${metadata.inputShape[2]}."
-            }
-        }
-
+    override fun classify(pcm: FloatArray, sampleRate: Int, signature: MeasuredSignature): List<Candidate> {
+        require(sampleRate > 0 && pcm.isNotEmpty()) { "Audio input is empty or has an invalid sample rate." }
         return try {
-            executor.submit<List<Candidate>> { runPooledInference(melWindows) }.get()
+            executor.submit<List<Candidate>> { classifyInternal(pcm, sampleRate) }.get()
         } catch (e: ExecutionException) {
             val cause = e.cause ?: e
             throw IllegalStateException(cause.message ?: cause.javaClass.simpleName, cause)
         }
     }
 
-    private fun runPooledInference(melWindows: List<Array<FloatArray>>): List<Candidate> {
-        val pooledLogits = DoubleArray(outputElementCount)
-        melWindows.forEach { melSpec ->
-            val logits = runSingleWindow(melSpec)
-            for (index in pooledLogits.indices) pooledLogits[index] += logits[index]
+    private fun classifyInternal(pcm: FloatArray, sourceRate: Int): List<Candidate> {
+        val resampled = resampleBandLimited(pcm, sourceRate, SAMPLE_RATE)
+        val windows = windows(resampled)
+        require(windows.isNotEmpty()) { "Perch preprocessor produced no five-second windows." }
+        val perWindowScores = ArrayList<DoubleArray>(windows.size)
+        val perWindowRaw = ArrayList<DoubleArray>(windows.size)
+        for (window in windows) {
+            val embedding = runPerch(window)
+            val raw = affine.raw(embedding)
+            perWindowRaw += raw
+            perWindowScores += calibration.calibratedScores(raw)
         }
-        val windowCount = melWindows.size.toDouble()
-        for (index in pooledLogits.indices) pooledLogits[index] /= windowCount
 
-        // Calibration is applied after mean-logit pooling, exactly as metadata specifies.
-        val scaled = DoubleArray(pooledLogits.size) {
-            pooledLogits[it] / metadata.calibrationTemperature
+        val maxScores = DoubleArray(CLASS_COUNT)
+        val maxRaw = DoubleArray(CLASS_COUNT)
+        for (s in 0 until CLASS_COUNT) {
+            maxScores[s] = perWindowScores.maxOf { it[s] }
+            maxRaw[s] = perWindowRaw.maxOf { it[s] }
         }
-        val maxLogit = scaled.maxOrNull() ?: 0.0
-        val exps = DoubleArray(scaled.size) { exp(scaled[it] - maxLogit) }
-        val sum = exps.sum().takeIf { it > 0.0 && it.isFinite() }
-            ?: throw IllegalStateException("The model produced invalid calibrated scores.")
-        val probabilities = DoubleArray(exps.size) { exps[it] / sum }
 
-        return probabilities.indices
-            .sortedByDescending { probabilities[it] }
-            .map { index ->
-                val label = labels[index]
-                Candidate(
-                    label = label,
-                    species = if (label == metadata.unknownLabel) null else speciesByLatin[normLatin(label)],
-                    confidence = probabilities[index],
-                    rawScore = pooledLogits[index],
-                    reliability = reliabilityRepository.forLabel(label)
-                )
+        val accepted = BooleanArray(CLASS_COUNT)
+        val decisionThresholds = DoubleArray(CLASS_COUNT)
+        if (windows.size == 1) {
+            for (s in 0 until CLASS_COUNT) {
+                decisionThresholds[s] = calibration.thresholds[s]
+                accepted[s] = maxScores[s] >= decisionThresholds[s]
             }
+        } else {
+            val hard = DoubleArray(CLASS_COUNT) {
+                (calibration.thresholds[it] + calibration.sessionThresholdOffset).coerceIn(0.05, 0.9995)
+            }
+            val near = DoubleArray(CLASS_COUNT) {
+                (hard[it] * calibration.sessionPersistenceRatio).coerceIn(0.05, 0.9995)
+            }
+            for (s in 0 until CLASS_COUNT) {
+                decisionThresholds[s] = hard[s]
+                val hardHit = perWindowScores.any { it[s] >= hard[s] }
+                var run = 0
+                var bestRun = 0
+                for (scores in perWindowScores) {
+                    run = if (scores[s] >= near[s]) run + 1 else 0
+                    bestRun = max(bestRun, run)
+                }
+                accepted[s] = hardHit || bestRun >= calibration.sessionPersistenceWindows
+            }
+        }
+
+        val order = (0 until CLASS_COUNT).sortedWith(
+            compareByDescending<Int> { accepted[it] }.thenByDescending { maxScores[it] }.thenBy { it }
+        )
+        return order.map { index ->
+            val label = labels[index]
+            val threshold = decisionThresholds[index]
+            val highThreshold = max(0.95, threshold + 0.05).coerceAtMost(0.9995)
+            Candidate(
+                label = label,
+                species = speciesByLatin[normalizeLatin(label)],
+                confidence = maxScores[index].coerceIn(0.0, 1.0),
+                rawScore = maxRaw[index],
+                reliability = reliabilityByLabel.getValue(label),
+                acceptanceThreshold = threshold,
+                highConfidenceThreshold = highThreshold,
+                evidenceAccepted = accepted[index],
+                evidenceSupport = if (windows.size == 1) {
+                    "Frozen J.1 5-second calibrated threshold"
+                } else {
+                    "Frozen J.1 long-session policy across ${windows.size} windows"
+                }
+            )
+        }
     }
 
-    private fun runSingleWindow(melSpec: Array<FloatArray>): DoubleArray {
-        val frames = metadata.inputShape[2]
-        val input = ByteBuffer.allocateDirect(Float.SIZE_BYTES * metadata.nMels * frames)
-            .order(ByteOrder.nativeOrder())
-        for (melIndex in 0 until metadata.nMels) {
-            for (time in 0 until frames) input.putFloat(melSpec[melIndex][time])
+    private fun runPerch(window: FloatArray): FloatArray {
+        require(window.size == WINDOW_SAMPLES)
+        val bytes = ByteBuffer.allocateDirect(WINDOW_SAMPLES * Float.SIZE_BYTES).order(ByteOrder.nativeOrder())
+        val floats = bytes.asFloatBuffer()
+        floats.put(window)
+        floats.rewind()
+        OnnxTensor.createTensor(env, floats, longArrayOf(1L, WINDOW_SAMPLES.toLong())).use { input ->
+            session.run(mapOf(inputName to input), setOf(globalOutputName)).use { result ->
+                val value = result.iterator().next().value as? OnnxTensor
+                    ?: throw IllegalStateException("Perch global output is not a tensor.")
+                val buffer = value.floatBuffer
+                    ?: throw IllegalStateException("Perch global output is not FLOAT32-compatible.")
+                require(buffer.remaining() == EMBEDDING_DIM) {
+                    "Perch global embedding has ${buffer.remaining()} values, expected $EMBEDDING_DIM."
+                }
+                return FloatArray(EMBEDDING_DIM).also(buffer::get)
+            }
         }
-        input.rewind()
+    }
 
-        val output = ByteBuffer.allocateDirect(Float.SIZE_BYTES * outputElementCount)
-            .order(ByteOrder.nativeOrder())
-        interpreter.run(input, output)
-        output.rewind()
-
-        return DoubleArray(outputElementCount) { output.float.toDouble() }.also { logits ->
-            require(logits.all(Double::isFinite)) { "The model produced a non-finite result." }
+    private fun windows(samples: FloatArray): List<FloatArray> {
+        if (samples.size <= WINDOW_SAMPLES) {
+            return listOf(FloatArray(WINDOW_SAMPLES).also { out ->
+                System.arraycopy(samples, 0, out, 0, samples.size.coerceAtMost(WINDOW_SAMPLES))
+            })
         }
+        val out = ArrayList<FloatArray>()
+        var start = 0
+        while (start + WINDOW_SAMPLES <= samples.size) {
+            out += samples.copyOfRange(start, start + WINDOW_SAMPLES)
+            start += WINDOW_HOP_SAMPLES
+        }
+        val lastStart = samples.size - WINDOW_SAMPLES
+        if (out.isEmpty() || start - WINDOW_HOP_SAMPLES != lastStart) {
+            out += samples.copyOfRange(lastStart, samples.size)
+        }
+        return out
+    }
+
+    private fun resampleBandLimited(input: FloatArray, fromRate: Int, toRate: Int): FloatArray {
+        if (fromRate == toRate) return input.copyOf()
+        val outSize = ((input.size.toLong() * toRate + fromRate / 2L) / fromRate)
+            .coerceAtLeast(1L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        val result = FloatArray(outSize)
+        val radius = 12
+        val ratio = fromRate.toDouble() / toRate.toDouble()
+        val cutoff = minOf(1.0, toRate.toDouble() / fromRate.toDouble()) * 0.94
+        for (i in result.indices) {
+            val src = i * ratio
+            val center = floor(src).toInt()
+            var sum = 0.0
+            var weightSum = 0.0
+            for (k in (center - radius + 1)..(center + radius)) {
+                if (k !in input.indices) continue
+                val d = src - k
+                val ad = kotlin.math.abs(d)
+                if (ad >= radius) continue
+                val sinc = if (ad < 1e-10) cutoff else sin(PI * d * cutoff) / (PI * d)
+                val window = 0.5 + 0.5 * cos(PI * d / radius)
+                val w = sinc * window
+                sum += input[k] * w
+                weightSum += w
+            }
+            result[i] = if (kotlin.math.abs(weightSum) > 1e-12) {
+                (sum / weightSum).toFloat().coerceIn(-1f, 1f)
+            } else 0f
+        }
+        return result
+    }
+
+    private fun j1Reliability(label: String): ReliabilityInfo {
+        val prior = reliabilityRepository.forLabel(label)
+        return if (prior.tier == ReliabilityTier.NOT_READY || prior.tier == ReliabilityTier.UNKNOWN_GATE) {
+            ReliabilityInfo(
+                tier = ReliabilityTier.EXPERIMENTAL,
+                primaryResultAllowed = true,
+                uiWording = "Frozen J.1 supports this acoustic class; species-specific independent field evaluation is still limited.",
+                evidenceSource = "Frozen Stage J.1 calibration"
+            )
+        } else prior.copy(primaryResultAllowed = true)
+    }
+
+    private fun verifyPerchModel(model: File) {
+        require(model.isFile) {
+            "Frozen J.1 Perch model is not installed. Run RUN_BUILD_AND_INSTALL_FINAL_ANDROID.bat to stage it without clearing app data."
+        }
+        require(model.length() == PERCH_BYTES) {
+            "Perch model size mismatch: ${model.length()} bytes; expected $PERCH_BYTES."
+        }
+        val digest = MessageDigest.getInstance("SHA-256")
+        model.inputStream().buffered(1024 * 1024).use { input ->
+            val buffer = ByteArray(1024 * 1024)
+            while (true) {
+                val count = input.read(buffer)
+                if (count <= 0) break
+                digest.update(buffer, 0, count)
+            }
+        }
+        val sha = digest.digest().joinToString("") { "%02x".format(it) }
+        require(sha.equals(PERCH_SHA256, ignoreCase = true)) { "Perch model SHA-256 mismatch; refusing inference." }
     }
 
     override fun close() {
-        try {
-            executor.submit { interpreter.close() }.get()
-        } catch (_: Throwable) {
-            // The process is shutting down.
-        } finally {
-            executor.shutdownNow()
+        try { executor.submit { session.close() }.get() }
+        catch (_: Throwable) { }
+        finally { executor.shutdownNow() }
+    }
+
+    private fun normalizeLatin(value: String): String =
+        value.lowercase().replace('_', ' ').trim().replace(Regex("\\s+"), " ")
+
+    private data class J1Calibration(
+        val thresholds: DoubleArray,
+        val calibrators: List<Calibrator>,
+        val temperature: Double,
+        val sessionThresholdOffset: Double,
+        val sessionPersistenceRatio: Double,
+        val sessionPersistenceWindows: Int
+    ) {
+        fun calibratedScores(raw: DoubleArray): DoubleArray {
+            val independent = DoubleArray(CLASS_COUNT) { sigmoid(raw[it] / 4.0) }
+            val scaled = DoubleArray(CLASS_COUNT) { raw[it] / temperature }
+            val maxValue = scaled.maxOrNull() ?: 0.0
+            val exps = DoubleArray(CLASS_COUNT) { exp((scaled[it] - maxValue).coerceIn(-80.0, 80.0)) }
+            val denom = exps.sum().coerceAtLeast(1e-300)
+            val stageProb = DoubleArray(CLASS_COUNT) { exps[it] / denom }
+            val top5 = scaled.indices.sortedByDescending { stageProb[it] }.take(5).toSet()
+            return DoubleArray(CLASS_COUNT) { s ->
+                val ind = independent[s]
+                val ge25 = if (ind >= 0.25) 1.0 else 0.0
+                val ge50 = if (ind >= 0.50) 1.0 else 0.0
+                val features = doubleArrayOf(
+                    ind, ind, ind, ind, ge25, ge50, ge25,
+                    ind, ind, ind, ge25, ge50, ge25,
+                    stageProb[s], if (s in top5) 1.0 else 0.0
+                )
+                val cal = calibrators[s]
+                var z = cal.intercept
+                for (j in features.indices) z += features[j] * cal.coef[j]
+                sigmoid(z)
+            }
+        }
+
+        companion object {
+            fun load(file: File, labels: List<String>): J1Calibration {
+                require(file.isFile) { "Frozen J.1 calibration is missing. Run the v3 build/install helper." }
+                val bytes = file.readBytes()
+                val digest = MessageDigest.getInstance("SHA-256").digest(bytes)
+                    .joinToString("") { "%02x".format(it) }
+                require(digest.equals(CALIBRATION_SHA256, ignoreCase = true)) {
+                    "Frozen J.1 calibration checksum mismatch."
+                }
+                val root = org.json.JSONObject(bytes.toString(Charsets.UTF_8))
+                require(root.getInt("schema_version") == 1)
+                require(root.getInt("species_count") == CLASS_COUNT)
+                require(root.getInt("embedding_dim") == EMBEDDING_DIM)
+                require(root.getInt("sample_rate") == SAMPLE_RATE)
+                require(root.getInt("window_samples") == WINDOW_SAMPLES)
+                val thresholdsJson = root.getJSONArray("thresholds")
+                val thresholds = DoubleArray(CLASS_COUNT) { thresholdsJson.getDouble(it) }
+                val calibratorsJson = root.getJSONArray("calibrators")
+                val calibrators = List(CLASS_COUNT) { index ->
+                    val item = calibratorsJson.getJSONObject(index)
+                    require(item.getString("species") == labels[index]) { "J.1 calibrator label order mismatch at $index." }
+                    val weights = item.getJSONArray("coef")
+                    require(weights.length() == FEATURE_COUNT)
+                    Calibrator(DoubleArray(FEATURE_COUNT) { weights.getDouble(it) }, item.getDouble("intercept"))
+                }
+                val longSession = root.getJSONObject("long_session_policy")
+                return J1Calibration(
+                    thresholds,
+                    calibrators,
+                    root.getDouble("temperature"),
+                    longSession.getDouble("threshold_offset"),
+                    longSession.getDouble("persistence_ratio"),
+                    longSession.getInt("persistence_windows")
+                )
+            }
         }
     }
 
-    /**
-     * Git may materialize text assets with LF or CRLF line endings. The model
-     * metadata checksum was produced from the original CRLF labels file, so
-     * compare the exact bytes first and then the two newline-only variants.
-     * No label text, ordering, whitespace, or blank lines are otherwise changed.
-     */
-    private fun labelsChecksumMatches(bytes: ByteArray, expected: String): Boolean {
-        val text = bytes.toString(Charsets.UTF_8)
-        val lf = text.replace("\r\n", "\n").replace('\r', '\n')
-        val candidates = listOf(
-            bytes,
-            lf.toByteArray(Charsets.UTF_8),
-            lf.replace("\n", "\r\n").toByteArray(Charsets.UTF_8)
-        )
-        return candidates.any { sha256(it).equals(expected, ignoreCase = true) }
+    private data class Calibrator(val coef: DoubleArray, val intercept: Double)
+
+    private class J1Affine private constructor(private val weights: FloatArray, private val bias: FloatArray) {
+        fun raw(embedding: FloatArray): DoubleArray {
+            require(embedding.size == EMBEDDING_DIM)
+            val out = DoubleArray(CLASS_COUNT) { bias[it].toDouble() }
+            var offset = 0
+            for (d in 0 until EMBEDDING_DIM) {
+                val x = embedding[d].toDouble()
+                for (s in 0 until CLASS_COUNT) out[s] += x * weights[offset + s]
+                offset += CLASS_COUNT
+            }
+            return out
+        }
+
+        companion object {
+            fun load(file: File, classes: Int): J1Affine {
+                require(file.isFile && file.length() == AFFINE_BYTES) {
+                    "Frozen J.1 affine head is missing or has the wrong size. Run the v3 build/install helper."
+                }
+                val bytes = file.readBytes()
+                val digest = MessageDigest.getInstance("SHA-256").digest(bytes)
+                    .joinToString("") { "%02x".format(it) }
+                require(digest.equals(AFFINE_SHA256, ignoreCase = true)) { "Frozen J.1 affine head checksum mismatch." }
+                val buffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+                val magicBytes = ByteArray(8).also(buffer::get)
+                require(magicBytes.toString(Charsets.US_ASCII) == "STRJ1AF1") { "Invalid J.1 affine magic." }
+                val dim = buffer.int
+                val count = buffer.int
+                require(dim == EMBEDDING_DIM && count == classes && count == CLASS_COUNT) {
+                    "Unexpected J.1 affine shape $dim x $count."
+                }
+                val weights = FloatArray(dim * count) { buffer.float }
+                val bias = FloatArray(count) { buffer.float }
+                require(!buffer.hasRemaining()) { "Unexpected trailing bytes in J.1 affine asset." }
+                return J1Affine(weights, bias)
+            }
+        }
     }
 
-    private fun sha256(bytes: ByteArray): String =
-        MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+    companion object {
+        private const val CLASS_COUNT = 88
+        private const val EMBEDDING_DIM = 1536
+        private const val FEATURE_COUNT = 15
+        private const val SAMPLE_RATE = 32000
+        private const val WINDOW_SAMPLES = 160000
+        private const val WINDOW_HOP_SAMPLES = 80000
+        private const val LABELS_ASSET = "j1_labels.txt"
+        private const val CALIBRATION_RELATIVE_PATH = "models/j1_calibration.json"
+        private const val CALIBRATION_SHA256 = "d4a45f2902a48b49b584157c8c603f40ea99445e02ae623012e1ec27cd6dc75e"
+        private const val AFFINE_RELATIVE_PATH = "models/j1_stage_d_affine.bin"
+        private const val AFFINE_BYTES = 541040L
+        private const val AFFINE_SHA256 = "066c6cf64b165abb83af93e4b1a38a4a3ffce2fa9ec476a5b3b9695466a6d76a"
+        private const val MODEL_RELATIVE_PATH = "models/perch_v2_no_dft.onnx"
+        private const val PERCH_BYTES = 413350933L
+        private const val PERCH_SHA256 = "4dcf71c18a147198545944bb5149697e89e3ad2e16637fa8f0edf6d13035a017"
+
+        private fun sigmoid(value: Double): Double {
+            val z = value.coerceIn(-40.0, 40.0)
+            return 1.0 / (1.0 + exp(-z))
+        }
+    }
 }

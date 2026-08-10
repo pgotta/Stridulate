@@ -23,18 +23,24 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.pgotta.stridulate.audio.SoundSensitivity
 import com.pgotta.stridulate.ui.Detection
 import com.pgotta.stridulate.ui.components.PrimaryButton
 import com.pgotta.stridulate.ui.components.RealSpectrogram
@@ -62,6 +68,8 @@ fun ListenScreen(
     onStop: () -> Unit,
     onCancel: () -> Unit
 ) {
+    val context = LocalContext.current
+    var sensitivity by remember { mutableStateOf(SoundSensitivity.initialize(context)) }
     val infinite = rememberInfiniteTransition(label = "pulse")
     val pulseScale by infinite.animateFloat(
         initialValue = 1f,
@@ -80,7 +88,7 @@ fun ListenScreen(
     Column(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
         AppBarRow(
             title = "Listening",
-            sub = "ROLLING ID · ACCEPTED CALLS ONLY",
+            sub = "FROZEN J.1 · PERCH 2.0 · ACCEPTED CALLS",
             onBack = onCancel,
             status = "recording",
             statusOn = true
@@ -95,7 +103,7 @@ fun ListenScreen(
             ) { Box(Modifier.size(13.dp).clip(CircleShape).background(Color.White)) }
             Spacer(Modifier.width(12.dp))
             Column {
-                Text("Listening for night callers", fontFamily = Fraunces, fontSize = 19.sp, color = Parch)
+                Text("Listening for singing insects", fontFamily = Fraunces, fontSize = 19.sp, color = Parch)
                 Text(
                     "FIRST RESULT AFTER ~5 SEC · ${elapsedSeconds.toInt()} SEC",
                     fontFamily = JetBrainsMono,
@@ -108,7 +116,7 @@ fun ListenScreen(
 
         Spacer(Modifier.height(11.dp))
         Box(
-            Modifier.fillMaxWidth().height(205.dp)
+            Modifier.fillMaxWidth().height(185.dp)
                 .clip(RoundedCornerShape(14.dp))
                 .background(SpecBg)
                 .border(BorderStroke(1.dp, Line), RoundedCornerShape(14.dp))
@@ -129,15 +137,48 @@ fun ListenScreen(
             )
         }
 
-        Spacer(Modifier.height(9.dp))
-        Text(
-            "Level ${(loudness * 100).toInt().coerceIn(0, 100)}% · rejected or disabled-tier guesses are not shown or logged.",
-            fontFamily = JetBrainsMono,
-            fontSize = 10.5.sp,
-            color = Mute,
-            lineHeight = 16.sp
-        )
         Spacer(Modifier.height(8.dp))
+        Column(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Panel)
+                .border(BorderStroke(1.dp, Line), RoundedCornerShape(12.dp)).padding(horizontal = 12.dp, vertical = 9.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Sound sensitivity", fontFamily = Fraunces, fontSize = 14.sp, color = Parch)
+                Spacer(Modifier.weight(1f))
+                Text(
+                    if (sensitivity <= 0.001f) "OFF · 1.0×" else "${(sensitivity * 100).toInt()}% · ${"%.1f".format(SoundSensitivity.gain)}×",
+                    fontFamily = JetBrainsMono,
+                    fontSize = 9.5.sp,
+                    color = if (sensitivity <= 0.001f) Mute else Biolume
+                )
+            }
+            Slider(
+                value = sensitivity,
+                onValueChange = { value ->
+                    sensitivity = value.coerceIn(0f, 1f)
+                    SoundSensitivity.set(context, sensitivity)
+                },
+                valueRange = 0f..1f,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Text(
+                "Boosts analysis and the spectrogram for quiet callers. OFF is neutral. The saved WAV always remains the original microphone audio.",
+                fontFamily = Inter,
+                fontSize = 10.5.sp,
+                color = Mute,
+                lineHeight = 15.sp
+            )
+        }
+
+        Spacer(Modifier.height(7.dp))
+        Text(
+            "Level ${(loudness * 100).toInt().coerceIn(0, 100)}% · guesses below their J.1 evidence threshold are not shown or logged.",
+            fontFamily = JetBrainsMono,
+            fontSize = 10.sp,
+            color = Mute,
+            lineHeight = 15.sp
+        )
+        Spacer(Modifier.height(7.dp))
 
         if (detections.isEmpty()) {
             Box(
@@ -146,7 +187,7 @@ fun ListenScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    "No accepted insect calls yet.\nLow-confidence output stays hidden.",
+                    "No accepted insect calls yet.\nLow-evidence output stays hidden.",
                     fontFamily = Inter,
                     fontSize = 13.sp,
                     color = ParchDim,

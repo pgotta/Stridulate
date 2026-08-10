@@ -37,15 +37,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pgotta.stridulate.community.CommunityObservationRecord
 import com.pgotta.stridulate.community.CommunityRecordStatus
 import com.pgotta.stridulate.community.EvidenceSource
+import com.pgotta.stridulate.ui.StridulateViewModel
 import com.pgotta.stridulate.ui.components.GhostButton
 import com.pgotta.stridulate.ui.components.PrimaryButton
+import com.pgotta.stridulate.ui.reanalyzeSavedUnknown
 import com.pgotta.stridulate.ui.theme.Amber
 import com.pgotta.stridulate.ui.theme.Biolume
 import com.pgotta.stridulate.ui.theme.Danger
@@ -103,7 +105,7 @@ fun CommunityArchiveScreen(
             Text("COMMUNITY IDENTIFICATION LOOP", fontFamily = JetBrainsMono, color = Amber, fontSize = 10.sp, letterSpacing = 1.5.sp)
             Spacer(Modifier.height(7.dp))
             Text(
-                "Move any Log recording here for manual review. Listen to the complete WAV, add notes, and optionally share it to iNaturalist for community identification. Nothing is uploaded unless you choose Share.",
+                "Move any Log recording here for manual review. Listen to the complete WAV, re-analyze it with frozen J.1, add notes, and optionally share it to iNaturalist for community identification. Nothing is uploaded unless you choose Share.",
                 fontFamily = Inter,
                 color = ParchDim,
                 fontSize = 12.5.sp,
@@ -127,7 +129,7 @@ fun CommunityArchiveScreen(
                 Text("No unknown recordings saved", fontFamily = Fraunces, color = Parch, fontSize = 20.sp)
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "Move a recording from Log, or save a No confident match from the result screen. Unknowns keeps the full WAV available for listening, notes and optional community review.",
+                    "Move a recording from Log, or save a No confident match from the result screen. Unknowns keeps the full WAV available for re-analysis, listening, notes and optional community review.",
                     fontFamily = Inter,
                     color = Mute,
                     fontSize = 12.5.sp,
@@ -167,12 +169,7 @@ private fun CommunityRecordRow(record: CommunityObservationRecord, onClick: () -
                 color = Parch,
                 fontSize = 16.sp
             )
-            Text(
-                record.id,
-                fontFamily = JetBrainsMono,
-                color = Mute,
-                fontSize = 9.5.sp
-            )
+            Text(record.id, fontFamily = JetBrainsMono, color = Mute, fontSize = 9.5.sp)
             Text(
                 "${record.status.displayName} · ${formatShortDate(record.createdAtMillis)}",
                 fontFamily = Inter,
@@ -200,9 +197,8 @@ fun CommunityRecordScreen(
     onExportBundle: () -> Unit,
     onDelete: () -> Unit
 ) {
-    var observationLink by remember(record.iNaturalistObservationId) {
-        mutableStateOf(record.iNaturalistUrl.orEmpty())
-    }
+    val vm: StridulateViewModel = viewModel()
+    var observationLink by remember(record.iNaturalistObservationId) { mutableStateOf(record.iNaturalistUrl.orEmpty()) }
     var showApprove by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
     var reviewNote by remember(record.id, record.note) { mutableStateOf(record.note.orEmpty()) }
@@ -220,34 +216,15 @@ fun CommunityRecordScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
                         "This is a human review step—not an automatic acceptance of iNaturalist consensus. Confirm the recording, label, and attribution. The original local WAV will be contributed under CC BY 4.0.",
-                        fontFamily = Inter,
-                        color = ParchDim,
-                        fontSize = 12.5.sp,
-                        lineHeight = 18.sp
+                        fontFamily = Inter, color = ParchDim, fontSize = 12.5.sp, lineHeight = 18.sp
                     )
-                    OutlinedTextField(
-                        value = label,
-                        onValueChange = { label = it },
-                        label = { Text("Reviewed scientific label") },
-                        singleLine = true
-                    )
-                    OutlinedTextField(
-                        value = credit,
-                        onValueChange = { credit = it },
-                        label = { Text("Contributor name or handle") },
-                        singleLine = true
-                    )
+                    OutlinedTextField(value = label, onValueChange = { label = it }, label = { Text("Reviewed scientific label") }, singleLine = true)
+                    OutlinedTextField(value = credit, onValueChange = { credit = it }, label = { Text("Contributor name or handle") }, singleLine = true)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(
-                            checked = rightsConfirmed,
-                            onCheckedChange = { rightsConfirmed = it }
-                        )
+                        Checkbox(checked = rightsConfirmed, onCheckedChange = { rightsConfirmed = it })
                         Text(
                             "I recorded this audio or have permission to license it under CC BY 4.0.",
-                            fontFamily = Inter,
-                            color = ParchDim,
-                            fontSize = 11.5.sp,
-                            lineHeight = 16.sp
+                            fontFamily = Inter, color = ParchDim, fontSize = 11.5.sp, lineHeight = 16.sp
                         )
                     }
                 }
@@ -271,17 +248,13 @@ fun CommunityRecordScreen(
             onDismissRequest = { showDelete = false },
             title = { Text("Delete saved recording?", fontFamily = Fraunces, color = Parch) },
             text = { Text("This removes the local WAV and metadata. It does not delete an iNaturalist observation.", color = ParchDim) },
-            confirmButton = {
-                TextButton(onClick = { showDelete = false; onDelete() }) { Text("Delete", color = Danger) }
-            },
+            confirmButton = { TextButton(onClick = { showDelete = false; onDelete() }) { Text("Delete", color = Danger) } },
             dismissButton = { TextButton(onClick = { showDelete = false }) { Text("Cancel") } },
             containerColor = Panel2
         )
     }
 
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp)
-    ) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp)) {
         AppBarRow(
             "Saved unknown",
             record.status.displayName.uppercase(),
@@ -320,6 +293,18 @@ fun CommunityRecordScreen(
         Spacer(Modifier.height(12.dp))
         SectionCard("LISTEN AND REVIEW") {
             PrimaryButton("▶ Play full recording", onPlayRecording, Modifier.fillMaxWidth())
+            Spacer(Modifier.height(8.dp))
+            PrimaryButton(
+                "Re-analyze with frozen J.1",
+                { vm.reanalyzeSavedUnknown(record.id) },
+                Modifier.fillMaxWidth(),
+                container = Biolume,
+                content = Color(0xFF0B1A0C)
+            )
+            Text(
+                "Runs the saved WAV through the new 88-species detector audio-only (up to 30 seconds). The original Unknown, notes and linked iNaturalist observation stay unchanged.",
+                fontFamily = Inter, color = Mute, fontSize = 10.5.sp, lineHeight = 15.sp, modifier = Modifier.padding(top = 7.dp)
+            )
             Spacer(Modifier.height(10.dp))
             OutlinedTextField(
                 value = reviewNote,
@@ -330,18 +315,10 @@ fun CommunityRecordScreen(
                 minLines = 3
             )
             Spacer(Modifier.height(8.dp))
-            GhostButton(
-                "Save review note",
-                { onUpdateNote(reviewNote) },
-                Modifier.fillMaxWidth()
-            )
+            GhostButton("Save review note", { onUpdateNote(reviewNote) }, Modifier.fillMaxWidth())
             Text(
                 "Notes and audio remain on this device unless you explicitly share or export them.",
-                fontFamily = Inter,
-                color = Mute,
-                fontSize = 10.5.sp,
-                lineHeight = 15.sp,
-                modifier = Modifier.padding(top = 7.dp)
+                fontFamily = Inter, color = Mute, fontSize = 10.5.sp, lineHeight = 15.sp, modifier = Modifier.padding(top = 7.dp)
             )
         }
 
@@ -354,11 +331,7 @@ fun CommunityRecordScreen(
                 record.candidates.forEachIndexed { index, candidate ->
                     Text(
                         "${index + 1}. ${candidate.commonName ?: candidate.scientificName ?: candidate.label} · ${(candidate.audioScore * 100).roundToInt()}% · ${candidate.reliabilityTier}",
-                        fontFamily = Inter,
-                        color = ParchDim,
-                        fontSize = 11.5.sp,
-                        lineHeight = 17.sp,
-                        modifier = Modifier.padding(bottom = 3.dp)
+                        fontFamily = Inter, color = ParchDim, fontSize = 11.5.sp, lineHeight = 17.sp, modifier = Modifier.padding(bottom = 3.dp)
                     )
                 }
             }
@@ -368,10 +341,7 @@ fun CommunityRecordScreen(
         SectionCard("1 · SHARE FOR COMMUNITY ID") {
             Text(
                 "This opens Android's share sheet with the original WAV and a prepared note. Choose iNaturalist, enter or verify the original date/location, and start with a broad ID such as Insects unless you personally support something narrower.",
-                fontFamily = Inter,
-                color = ParchDim,
-                fontSize = 12.5.sp,
-                lineHeight = 18.sp
+                fontFamily = Inter, color = ParchDim, fontSize = 12.5.sp, lineHeight = 18.sp
             )
             Spacer(Modifier.height(10.dp))
             PrimaryButton("Share WAV to iNaturalist", onShareToINaturalist, Modifier.fillMaxWidth())
@@ -382,10 +352,7 @@ fun CommunityRecordScreen(
             if (record.iNaturalistObservationId == null) {
                 Text(
                     "After uploading, copy the iNaturalist observation URL and paste it here. Stridulate stores only the public observation ID and checks it on demand.",
-                    fontFamily = Inter,
-                    color = ParchDim,
-                    fontSize = 12.5.sp,
-                    lineHeight = 18.sp
+                    fontFamily = Inter, color = ParchDim, fontSize = 12.5.sp, lineHeight = 18.sp
                 )
                 Spacer(Modifier.height(9.dp))
                 OutlinedTextField(
@@ -396,18 +363,11 @@ fun CommunityRecordScreen(
                     singleLine = true
                 )
                 Spacer(Modifier.height(8.dp))
-                PrimaryButton(
-                    "Link and check now",
-                    { onLinkINaturalist(observationLink) },
-                    Modifier.fillMaxWidth()
-                )
+                PrimaryButton("Link and check now", { onLinkINaturalist(observationLink) }, Modifier.fillMaxWidth())
             } else {
                 ValueLine("Observation", record.iNaturalistObservationId.toString())
                 ValueLine("Observer ID", record.observerTaxonCommonName ?: record.observerTaxonScientificName ?: "Not set")
-                ValueLine(
-                    "Community ID",
-                    record.communityTaxonCommonName ?: record.communityTaxonScientificName ?: "Still needs identification"
-                )
+                ValueLine("Community ID", record.communityTaxonCommonName ?: record.communityTaxonScientificName ?: "Still needs identification")
                 ValueLine(
                     "Resolution",
                     when {
@@ -429,18 +389,10 @@ fun CommunityRecordScreen(
                     GhostButton("Open observation", onOpenINaturalist, Modifier.weight(1f))
                 }
                 Spacer(Modifier.height(8.dp))
-                GhostButton(
-                    "Track this ID on GitHub",
-                    onOpenGitHubTracking,
-                    Modifier.fillMaxWidth()
-                )
+                GhostButton("Track this ID on GitHub", onOpenGitHubTracking, Modifier.fillMaxWidth())
                 Text(
                     "This opens a prefilled public issue. A repository workflow can post the latest public iNaturalist community ID without receiving your iNaturalist login or copying its audio.",
-                    fontFamily = Inter,
-                    color = Mute,
-                    fontSize = 10.5.sp,
-                    lineHeight = 15.sp,
-                    modifier = Modifier.padding(top = 7.dp)
+                    fontFamily = Inter, color = Mute, fontSize = 10.5.sp, lineHeight = 15.sp, modifier = Modifier.padding(top = 7.dp)
                 )
             }
         }
@@ -449,10 +401,7 @@ fun CommunityRecordScreen(
         SectionCard("3 · CONTRIBUTE A KNOWN RECORDING") {
             Text(
                 "An iNaturalist community taxon is evidence, not an automatic model label. Listen again and verify the identification. Approval creates a ZIP containing your original WAV and metadata; Stridulate never downloads iNaturalist-hosted media into the dataset.",
-                fontFamily = Inter,
-                color = ParchDim,
-                fontSize = 12.5.sp,
-                lineHeight = 18.sp
+                fontFamily = Inter, color = ParchDim, fontSize = 12.5.sp, lineHeight = 18.sp
             )
             Spacer(Modifier.height(10.dp))
             if (record.status == CommunityRecordStatus.TRAINING_APPROVED) {
@@ -477,10 +426,7 @@ fun CommunityRecordScreen(
                         } else {
                             "No community taxon is available yet. Approve only if you independently reviewed the recording and are confident."
                         },
-                        fontFamily = Inter,
-                        color = Amber,
-                        fontSize = 11.5.sp,
-                        lineHeight = 16.sp
+                        fontFamily = Inter, color = Amber, fontSize = 11.5.sp, lineHeight = 16.sp
                     )
                 }
             }

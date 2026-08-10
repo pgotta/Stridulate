@@ -32,6 +32,13 @@ secrets.properties
 *.apks
 captures/
 
+# Frozen J.1 runtime binaries are staged into app-private storage by the local installer.
+# Never commit or package these runtime binaries in Git/APK.
+app/src/main/assets/perch_v2_no_dft.onnx
+app/src/main/assets/j1_stage_d_affine.bin
+j1_stage_d_affine.bin
+perch_v2_no_dft.onnx
+
 # OS and editor files
 .DS_Store
 Thumbs.db

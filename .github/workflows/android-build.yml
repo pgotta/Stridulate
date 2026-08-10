@@ -24,8 +24,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Verify model and project contracts
-        run: python verification/verify_ci.py
+      - name: Verify frozen J.1 Android contracts
+        run: python verification/verify_final_j_android.py
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -45,8 +45,8 @@ jobs:
           set -o pipefail
           ./gradlew --no-daemon assembleDebug 2>&1 | tee gradle-build.log
 
-      - name: Verify packaged model assets
-        run: python verification/verify_apk_assets.py app/build/outputs/apk/debug/app-debug.apk
+      - name: Verify frozen J.1 APK assets
+        run: python verification/verify_final_j_apk.py app/build/outputs/apk/debug/app-debug.apk
 
       - name: Upload Gradle build log
         if: always()

@@ -11,8 +11,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * Live microphone capture. It keeps a six-second rolling float buffer for live
- * inference while streaming the complete PCM16 recording to a private temp file.
+ * Live microphone capture. It keeps a six-second rolling *raw* float buffer for
+ * inference while streaming the complete original PCM16 recording to a private
+ * temp file. SoundSensitivity is applied only to the live visualization here;
+ * ClipAnalyzer applies the same gain once to the raw buffer before inference.
  */
 class MicRecorder(
     private val fftSize: Int = 4096
@@ -30,7 +32,7 @@ class MicRecorder(
     val spectrogramColumn: StateFlow<FloatArray> = _spectrogramColumn
 
     private val _loudness = MutableStateFlow(0f)
-    val loudness: StateFlow<Float> = _loudness
+    val loudness: StateFlow<Float> get() = _loudness
 
     private val pcmBuffer = ArrayList<Float>()
     private val pcmLock = Any()
@@ -72,7 +74,8 @@ class MicRecorder(
 
         val fft = Fft(fftSize)
         val pcmShort = ShortArray(fftSize)
-        val frame = FloatArray(fftSize)
+        val rawFrame = FloatArray(fftSize)
+        val analysisFrame = FloatArray(fftSize)
         val pcmBytes = ByteArray(fftSize * 2)
         val specHeight = 96
 
@@ -93,7 +96,9 @@ class MicRecorder(
                     var byteIndex = 0
                     for (i in 0 until fftSize) {
                         val sample = pcmShort[i]
-                        frame[i] = sample / 32768f
+                        val raw = sample / 32768f
+                        rawFrame[i] = raw
+                        analysisFrame[i] = SoundSensitivity.applySample(raw)
                         pcmBytes[byteIndex++] = (sample.toInt() and 0xFF).toByte()
                         pcmBytes[byteIndex++] = ((sample.toInt() ushr 8) and 0xFF).toByte()
                     }
@@ -101,7 +106,7 @@ class MicRecorder(
                     totalSamples += fftSize
 
                     synchronized(pcmLock) {
-                        for (v in frame) pcmBuffer.add(v)
+                        for (v in rawFrame) pcmBuffer.add(v)
                         val maxLen = sampleRate * PCM_SECONDS
                         if (pcmBuffer.size > maxLen) {
                             val excess = pcmBuffer.size - maxLen
@@ -109,7 +114,7 @@ class MicRecorder(
                         }
                     }
 
-                    val spectrum = fft.magnitudeSpectrum(frame)
+                    val spectrum = fft.magnitudeSpectrum(analysisFrame)
                     val t = (System.nanoTime() - startNs) / 1e9
                     onFrame(spectrum, t)
 
