@@ -10,14 +10,22 @@ import com.pgotta.stridulate.data.Species
 data class Candidate(
     val label: String,
     val species: Species?,
-    /** Calibrated audio-model probability. Context never overwrites this value. */
+    /** Calibrated audio-model score. Context never overwrites this value. */
     val confidence: Double,
     val rawScore: Double,
     val reliability: ReliabilityInfo = ReliabilityInfo(ReliabilityTier.EXPERIMENTAL),
     /** Ranking score after optional small region/season/time adjustments. */
     val contextScore: Double = confidence,
     val contextMultiplier: Double = 1.0,
-    val contextSummary: String? = null
+    val contextSummary: String? = null,
+    /** Frozen J.1 acceptance threshold for this species, when this is a J.1 result. */
+    val acceptanceThreshold: Double? = null,
+    /** Conservative UI threshold for the "High confidence" evidence band. */
+    val highConfidenceThreshold: Double? = null,
+    /** Absolute J.1 evidence decision. Null for legacy/fallback classifiers. */
+    val evidenceAccepted: Boolean? = null,
+    /** Short model-specific evidence note for diagnostics and result explanations. */
+    val evidenceSupport: String? = null
 ) {
     val isUnknown: Boolean get() = species == null
     val audioConfidence: Double get() = confidence
