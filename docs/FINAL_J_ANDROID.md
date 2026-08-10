@@ -19,7 +19,7 @@ band-limited resample to 32 kHz mono
   ↓
 frozen 88-class Stage-D affine head
   ↓
-frozen J.1 per-species calibration
+original frozen J.1 per-species calibration artifact
   ↓
 J.1 acceptance / long-session persistence policy
   ↓
@@ -76,11 +76,18 @@ bias: FLOAT32 [88]
 
 ### J.1 calibration
 
+The Android runtime stages the original archived J.1 calibration bytes unchanged, using a shorter runtime filename:
+
 ```text
-file: j1_calibration.json
-sha256: d4a45f2902a48b49b584157c8c603f40ea99445e02ae623012e1ec27cd6dc75e
+runtime file: j1_calibration.json
+source artifact: global_stage_d_independent_field_balanced_calibration.json
+bytes: 69561
+sha256: 9a8323d4f6aea3bd85d36d55eadbc38d6eb85088451bee9682a46216ee79c70f
 species: 88
+Stage-D temperature: 4.0
 ```
+
+The Android parser reads the original `thresholds`, `calibrators`, and `session_policy` fields directly. No transformed calibration export is required.
 
 All three files are staged into app-private storage by the Windows build/install helper and verified again by the Android classifier.
 
