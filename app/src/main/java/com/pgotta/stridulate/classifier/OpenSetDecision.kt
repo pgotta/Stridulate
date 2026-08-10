@@ -22,7 +22,15 @@ data class OpenSetDecisionResult(
     val acousticCheck: AcousticCompatibilityResult
 )
 
-/** Precision-first decision overlay for real phone recordings and unknown look-alikes. */
+/**
+ * Runtime decision overlay.
+ *
+ * Frozen J.1 candidates carry their own independently calibrated per-species
+ * acceptance threshold. For those candidates we do not stack the legacy epoch-19
+ * margin/acoustic veto on top of J.1, because that would change the validated J.1
+ * decision. Recording-quality blockers still fail closed. Legacy candidates keep
+ * the previous open-set behavior unchanged.
+ */
 object OpenSetDecision {
     fun evaluate(
         top: Candidate,
@@ -35,6 +43,47 @@ object OpenSetDecision {
         val topIsUnknown = top.label == policy.unknownLabel || top.isUnknown
         val reliability = policy.reliabilityByLabel[top.label] ?: top.reliability
         val tier = reliability.tier
+        val qualityBlock = recordingQuality?.blockingReason
+        val isFrozenJ1 = top.acceptanceThreshold != null && top.evidenceAccepted != null
+
+        if (isFrozenJ1) {
+            val requiredConfidence = top.acceptanceThreshold!!.coerceIn(0.0, 1.0)
+            val highThreshold = (top.highConfidenceThreshold ?: 0.95).coerceIn(requiredConfidence, 1.0)
+            val acousticCheck = AcousticCompatibilityResult(
+                true,
+                "Frozen J.1 uses its calibrated Perch evidence directly; the legacy hand-authored acoustic veto is not applied."
+            )
+            val highConfidence = top.evidenceAccepted == true &&
+                top.audioConfidence >= highThreshold &&
+                margin >= 0.10 &&
+                recordingQuality?.grade == RecordingQualityGrade.GOOD
+            val type = when {
+                qualityBlock != null -> OpenSetDecisionType.REJECTED
+                topIsUnknown -> OpenSetDecisionType.REJECTED
+                top.evidenceAccepted != true -> OpenSetDecisionType.REJECTED
+                highConfidence -> OpenSetDecisionType.STRONG_POSSIBLE
+                else -> OpenSetDecisionType.POSSIBLE
+            }
+            val reason = when {
+                qualityBlock != null -> qualityBlock
+                topIsUnknown -> "The model did not produce a supported species candidate."
+                top.evidenceAccepted != true ->
+                    "No frozen J.1 species crossed its calibrated evidence threshold. The closest score was ${(top.audioConfidence * 100).toInt()}%; ${top.label.replace('_', ' ')} requires ${(requiredConfidence * 100).toInt()}%."
+                highConfidence ->
+                    "High-confidence evidence band: frozen J.1 crossed this species' calibrated threshold by a wide margin on a good-quality recording. Confirm the call in the field guide before treating it as identified."
+                else ->
+                    "Likely match: frozen J.1 crossed this species' calibrated acceptance threshold. Confirm the call pattern and field-guide details; the score is model evidence, not certainty."
+            }
+            return OpenSetDecisionResult(
+                type = type,
+                reason = reason,
+                requiredConfidence = requiredConfidence,
+                requiredMargin = 0.0,
+                margin = margin,
+                acousticCheck = acousticCheck
+            )
+        }
+
         val safetyRule = policy.openSetSafetyPolicy.ruleFor(top.label, tier)
         val confusableCicadaPair = runnerUp != null &&
             setOf(top.label, runnerUp.label) == DOG_DAY_LINNE_PAIR
@@ -53,7 +102,6 @@ object OpenSetDecision {
         } else {
             AcousticCompatibilityResult(true, "Acoustic profile check was not required for this output.")
         }
-        val qualityBlock = recordingQuality?.blockingReason
         val strongPolicy = policy.openSetSafetyPolicy
         val strongPossible = tier == ReliabilityTier.VERIFIED &&
             top.audioConfidence >= strongPolicy.strongMinimumConfidence &&
