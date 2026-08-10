@@ -27,12 +27,12 @@ import kotlin.math.sin
 
 /**
  * Compatibility entry point retained so the existing ViewModel does not need a
- * migration. Despite the historical class name, v3 runs the exact frozen Stage
- * J.1 Perch 2.0 + Stage-D affine/calibration path through ONNX Runtime.
+ * migration. Despite the historical class name, v3 runs the frozen Stage J.1
+ * Perch 2.0 + Stage-D affine/calibration path through ONNX Runtime.
  *
- * The 413 MB Perch model is intentionally not committed or packed into the APK.
- * RUN_BUILD_AND_INSTALL_FINAL_ANDROID.bat verifies and stages the exact model at
- * files/models/perch_v2_no_dft.onnx without clearing app data.
+ * Runtime files are intentionally not committed or packed into the APK. The v3
+ * build/install helper verifies and stages Perch, the affine head and calibration
+ * into files/models without clearing app data.
  */
 class TfLiteClassifier(
     context: Context,
@@ -45,13 +45,11 @@ class TfLiteClassifier(
 ) : InsectClassifier {
 
     private val app = context.applicationContext
-    private val executor = Executors.newSingleThreadExecutor { task ->
-        Thread(task, "Stridulate-J1-Perch")
-    }
+    private val executor = Executors.newSingleThreadExecutor { task -> Thread(task, "Stridulate-J1-Perch") }
     private val labels = app.assets.open(LABELS_ASSET).bufferedReader().useLines { lines ->
         lines.map(String::trim).filter(String::isNotBlank).toList()
     }
-    private val calibration = J1Calibration.load(app, labels)
+    private val calibration = J1Calibration.load(File(app.filesDir, CALIBRATION_RELATIVE_PATH), labels)
     private val affine = J1Affine.load(File(app.filesDir, AFFINE_RELATIVE_PATH), labels.size)
     private val reliabilityRepository = SpeciesReliabilityRepository(app, reliabilityAsset)
     private val speciesByLatin = species.associateBy { normalizeLatin(it.latin) }
@@ -133,19 +131,12 @@ class TfLiteClassifier(
         }
     }
 
-    /** A hand-measured signature alone is insufficient for frozen J.1. */
     override fun classify(signature: MeasuredSignature): List<Candidate> = emptyList()
 
-    override fun classify(
-        pcm: FloatArray,
-        sampleRate: Int,
-        signature: MeasuredSignature
-    ): List<Candidate> {
+    override fun classify(pcm: FloatArray, sampleRate: Int, signature: MeasuredSignature): List<Candidate> {
         require(sampleRate > 0 && pcm.isNotEmpty()) { "Audio input is empty or has an invalid sample rate." }
         return try {
-            executor.submit<List<Candidate>> {
-                classifyInternal(pcm, sampleRate)
-            }.get()
+            executor.submit<List<Candidate>> { classifyInternal(pcm, sampleRate) }.get()
         } catch (e: ExecutionException) {
             val cause = e.cause ?: e
             throw IllegalStateException(cause.message ?: cause.javaClass.simpleName, cause)
@@ -200,9 +191,7 @@ class TfLiteClassifier(
         }
 
         val order = (0 until CLASS_COUNT).sortedWith(
-            compareByDescending<Int> { accepted[it] }
-                .thenByDescending { maxScores[it] }
-                .thenBy { it }
+            compareByDescending<Int> { accepted[it] }.thenByDescending { maxScores[it] }.thenBy { it }
         )
         return order.map { index ->
             val label = labels[index]
@@ -228,8 +217,7 @@ class TfLiteClassifier(
 
     private fun runPerch(window: FloatArray): FloatArray {
         require(window.size == WINDOW_SAMPLES)
-        val bytes = ByteBuffer.allocateDirect(WINDOW_SAMPLES * Float.SIZE_BYTES)
-            .order(ByteOrder.nativeOrder())
+        val bytes = ByteBuffer.allocateDirect(WINDOW_SAMPLES * Float.SIZE_BYTES).order(ByteOrder.nativeOrder())
         val floats = bytes.asFloatBuffer()
         floats.put(window)
         floats.rewind()
@@ -266,7 +254,6 @@ class TfLiteClassifier(
         return out
     }
 
-    /** Windowed-sinc resampler with anti-aliasing for 44.1/48 kHz phone audio. */
     private fun resampleBandLimited(input: FloatArray, fromRate: Int, toRate: Int): FloatArray {
         if (fromRate == toRate) return input.copyOf()
         val outSize = ((input.size.toLong() * toRate + fromRate / 2L) / fromRate)
@@ -307,9 +294,7 @@ class TfLiteClassifier(
                 uiWording = "Frozen J.1 supports this acoustic class; species-specific independent field evaluation is still limited.",
                 evidenceSource = "Frozen Stage J.1 calibration"
             )
-        } else {
-            prior.copy(primaryResultAllowed = true)
-        }
+        } else prior.copy(primaryResultAllowed = true)
     }
 
     private fun verifyPerchModel(model: File) {
@@ -329,19 +314,13 @@ class TfLiteClassifier(
             }
         }
         val sha = digest.digest().joinToString("") { "%02x".format(it) }
-        require(sha.equals(PERCH_SHA256, ignoreCase = true)) {
-            "Perch model SHA-256 mismatch; refusing inference."
-        }
+        require(sha.equals(PERCH_SHA256, ignoreCase = true)) { "Perch model SHA-256 mismatch; refusing inference." }
     }
 
     override fun close() {
-        try {
-            executor.submit { session.close() }.get()
-        } catch (_: Throwable) {
-            // Process is shutting down.
-        } finally {
-            executor.shutdownNow()
-        }
+        try { executor.submit { session.close() }.get() }
+        catch (_: Throwable) { }
+        finally { executor.shutdownNow() }
     }
 
     private fun normalizeLatin(value: String): String =
@@ -380,10 +359,15 @@ class TfLiteClassifier(
         }
 
         companion object {
-            fun load(context: Context, labels: List<String>): J1Calibration {
-                val root = org.json.JSONObject(
-                    context.assets.open(CALIBRATION_ASSET).bufferedReader().use { it.readText() }
-                )
+            fun load(file: File, labels: List<String>): J1Calibration {
+                require(file.isFile) { "Frozen J.1 calibration is missing. Run the v3 build/install helper." }
+                val bytes = file.readBytes()
+                val digest = MessageDigest.getInstance("SHA-256").digest(bytes)
+                    .joinToString("") { "%02x".format(it) }
+                require(digest.equals(CALIBRATION_SHA256, ignoreCase = true)) {
+                    "Frozen J.1 calibration checksum mismatch."
+                }
+                val root = org.json.JSONObject(bytes.toString(Charsets.UTF_8))
                 require(root.getInt("schema_version") == 1)
                 require(root.getInt("species_count") == CLASS_COUNT)
                 require(root.getInt("embedding_dim") == EMBEDDING_DIM)
@@ -394,24 +378,19 @@ class TfLiteClassifier(
                 val calibratorsJson = root.getJSONArray("calibrators")
                 val calibrators = List(CLASS_COUNT) { index ->
                     val item = calibratorsJson.getJSONObject(index)
-                    require(item.getString("species") == labels[index]) {
-                        "J.1 calibrator label order mismatch at $index."
-                    }
+                    require(item.getString("species") == labels[index]) { "J.1 calibrator label order mismatch at $index." }
                     val weights = item.getJSONArray("coef")
                     require(weights.length() == FEATURE_COUNT)
-                    Calibrator(
-                        coef = DoubleArray(FEATURE_COUNT) { weights.getDouble(it) },
-                        intercept = item.getDouble("intercept")
-                    )
+                    Calibrator(DoubleArray(FEATURE_COUNT) { weights.getDouble(it) }, item.getDouble("intercept"))
                 }
-                val sessionPolicy = root.getJSONObject("long_session_policy")
+                val longSession = root.getJSONObject("long_session_policy")
                 return J1Calibration(
-                    thresholds = thresholds,
-                    calibrators = calibrators,
-                    temperature = root.getDouble("temperature"),
-                    sessionThresholdOffset = sessionPolicy.getDouble("threshold_offset"),
-                    sessionPersistenceRatio = sessionPolicy.getDouble("persistence_ratio"),
-                    sessionPersistenceWindows = sessionPolicy.getInt("persistence_windows")
+                    thresholds,
+                    calibrators,
+                    root.getDouble("temperature"),
+                    longSession.getDouble("threshold_offset"),
+                    longSession.getDouble("persistence_ratio"),
+                    longSession.getInt("persistence_windows")
                 )
             }
         }
@@ -419,10 +398,7 @@ class TfLiteClassifier(
 
     private data class Calibrator(val coef: DoubleArray, val intercept: Double)
 
-    private class J1Affine private constructor(
-        private val weights: FloatArray,
-        private val bias: FloatArray
-    ) {
+    private class J1Affine private constructor(private val weights: FloatArray, private val bias: FloatArray) {
         fun raw(embedding: FloatArray): DoubleArray {
             require(embedding.size == EMBEDDING_DIM)
             val out = DoubleArray(CLASS_COUNT) { bias[it].toDouble() }
@@ -441,11 +417,9 @@ class TfLiteClassifier(
                     "Frozen J.1 affine head is missing or has the wrong size. Run the v3 build/install helper."
                 }
                 val bytes = file.readBytes()
-                val digest = MessageDigest.getInstance("SHA-256")
-                    .digest(bytes).joinToString("") { "%02x".format(it) }
-                require(digest.equals(AFFINE_SHA256, ignoreCase = true)) {
-                    "Frozen J.1 affine head checksum mismatch."
-                }
+                val digest = MessageDigest.getInstance("SHA-256").digest(bytes)
+                    .joinToString("") { "%02x".format(it) }
+                require(digest.equals(AFFINE_SHA256, ignoreCase = true)) { "Frozen J.1 affine head checksum mismatch." }
                 val buffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
                 val magicBytes = ByteArray(8).also(buffer::get)
                 require(magicBytes.toString(Charsets.US_ASCII) == "STRJ1AF1") { "Invalid J.1 affine magic." }
@@ -470,7 +444,8 @@ class TfLiteClassifier(
         private const val WINDOW_SAMPLES = 160000
         private const val WINDOW_HOP_SAMPLES = 80000
         private const val LABELS_ASSET = "j1_labels.txt"
-        private const val CALIBRATION_ASSET = "j1_calibration.json"
+        private const val CALIBRATION_RELATIVE_PATH = "models/j1_calibration.json"
+        private const val CALIBRATION_SHA256 = "d4a45f2902a48b49b584157c8c603f40ea99445e02ae623012e1ec27cd6dc75e"
         private const val AFFINE_RELATIVE_PATH = "models/j1_stage_d_affine.bin"
         private const val AFFINE_BYTES = 541040L
         private const val AFFINE_SHA256 = "066c6cf64b165abb83af93e4b1a38a4a3ffce2fa9ec476a5b3b9695466a6d76a"
