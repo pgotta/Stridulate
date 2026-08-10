@@ -11,11 +11,11 @@ android {
 
     defaultConfig {
         applicationId = "com.pgotta.stridulate"
-        minSdk = 26            // Android 8.0 — needed for MediaCodec async + AudioRecord features
+        minSdk = 26
         targetSdk = 34
-        // Rolling detection, waveform event replay, persistent Log, tier controls, and cached species photos.
-        versionCode = 14
-        versionName = "2.5.0"
+        // Final Stage-J Android consolidation: frozen J.1 + Perch 2.0, 88 species.
+        versionCode = 15
+        versionName = "3.0.0"
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -37,10 +37,8 @@ android {
     packaging {
         resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" }
     }
-    // Don't compress the model file so it can be memory-mapped by TFLite later
-    androidResources {
-        noCompress += "tflite"
-    }
+    // The legacy TFLite asset remains uncompressed for rollback/audit compatibility.
+    androidResources { noCompress += "tflite" }
 }
 
 dependencies {
@@ -59,14 +57,12 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.navigation:navigation-compose:2.8.0")
 
-    // JSON for the species database
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.1")
-
-    // Image loading for field-guide photos
     implementation("io.coil-kt:coil-compose:2.7.0")
 
-    // Portable CPU runtime for the repaired FLOAT32 insect classifier.
+    // Retained for legacy source/assets while v3's active classifier is frozen J.1/Perch ONNX.
     implementation("org.tensorflow:tensorflow-lite:2.16.1")
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.26.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
