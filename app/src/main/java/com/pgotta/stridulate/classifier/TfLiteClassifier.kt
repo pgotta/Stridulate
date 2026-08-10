@@ -31,8 +31,8 @@ import kotlin.math.sin
  * Perch 2.0 + Stage-D affine/calibration path through ONNX Runtime.
  *
  * Runtime files are intentionally not committed or packed into the APK. The v3
- * build/install helper verifies and stages Perch, the affine head and calibration
- * into files/models without clearing app data.
+ * build/install helper verifies and stages Perch, the affine head and the original
+ * archived J.1 calibration into files/models without clearing app data.
  */
 class TfLiteClassifier(
     context: Context,
@@ -335,7 +335,7 @@ class TfLiteClassifier(
         val sessionPersistenceWindows: Int
     ) {
         fun calibratedScores(raw: DoubleArray): DoubleArray {
-            val independent = DoubleArray(CLASS_COUNT) { sigmoid(raw[it] / 4.0) }
+            val independent = DoubleArray(CLASS_COUNT) { sigmoid(raw[it] / STAGE_D_TEMPERATURE) }
             val scaled = DoubleArray(CLASS_COUNT) { raw[it] / temperature }
             val maxValue = scaled.maxOrNull() ?: 0.0
             val exps = DoubleArray(CLASS_COUNT) { exp((scaled[it] - maxValue).coerceIn(-80.0, 80.0)) }
@@ -360,22 +360,21 @@ class TfLiteClassifier(
 
         companion object {
             fun load(file: File, labels: List<String>): J1Calibration {
-                require(file.isFile) { "Frozen J.1 calibration is missing. Run the v3 build/install helper." }
+                require(file.isFile && file.length() == CALIBRATION_BYTES) {
+                    "Original frozen J.1 calibration is missing or has the wrong size. Run the v3 build/install helper."
+                }
                 val bytes = file.readBytes()
                 val digest = MessageDigest.getInstance("SHA-256").digest(bytes)
                     .joinToString("") { "%02x".format(it) }
                 require(digest.equals(CALIBRATION_SHA256, ignoreCase = true)) {
-                    "Frozen J.1 calibration checksum mismatch."
+                    "Original frozen J.1 calibration checksum mismatch."
                 }
                 val root = org.json.JSONObject(bytes.toString(Charsets.UTF_8))
-                require(root.getInt("schema_version") == 1)
-                require(root.getInt("species_count") == CLASS_COUNT)
-                require(root.getInt("embedding_dim") == EMBEDDING_DIM)
-                require(root.getInt("sample_rate") == SAMPLE_RATE)
-                require(root.getInt("window_samples") == WINDOW_SAMPLES)
                 val thresholdsJson = root.getJSONArray("thresholds")
+                require(thresholdsJson.length() == CLASS_COUNT) { "J.1 threshold count is not $CLASS_COUNT." }
                 val thresholds = DoubleArray(CLASS_COUNT) { thresholdsJson.getDouble(it) }
                 val calibratorsJson = root.getJSONArray("calibrators")
+                require(calibratorsJson.length() == CLASS_COUNT) { "J.1 calibrator count is not $CLASS_COUNT." }
                 val calibrators = List(CLASS_COUNT) { index ->
                     val item = calibratorsJson.getJSONObject(index)
                     require(item.getString("species") == labels[index]) { "J.1 calibrator label order mismatch at $index." }
@@ -383,14 +382,14 @@ class TfLiteClassifier(
                     require(weights.length() == FEATURE_COUNT)
                     Calibrator(DoubleArray(FEATURE_COUNT) { weights.getDouble(it) }, item.getDouble("intercept"))
                 }
-                val longSession = root.getJSONObject("long_session_policy")
+                val sessionPolicy = root.getJSONObject("session_policy")
                 return J1Calibration(
                     thresholds,
                     calibrators,
-                    root.getDouble("temperature"),
-                    longSession.getDouble("threshold_offset"),
-                    longSession.getDouble("persistence_ratio"),
-                    longSession.getInt("persistence_windows")
+                    STAGE_D_TEMPERATURE,
+                    sessionPolicy.getDouble("threshold_offset"),
+                    sessionPolicy.getDouble("persistence_ratio"),
+                    sessionPolicy.getInt("persistence_windows")
                 )
             }
         }
@@ -443,9 +442,11 @@ class TfLiteClassifier(
         private const val SAMPLE_RATE = 32000
         private const val WINDOW_SAMPLES = 160000
         private const val WINDOW_HOP_SAMPLES = 80000
+        private const val STAGE_D_TEMPERATURE = 4.0
         private const val LABELS_ASSET = "j1_labels.txt"
         private const val CALIBRATION_RELATIVE_PATH = "models/j1_calibration.json"
-        private const val CALIBRATION_SHA256 = "d4a45f2902a48b49b584157c8c603f40ea99445e02ae623012e1ec27cd6dc75e"
+        private const val CALIBRATION_BYTES = 69561L
+        private const val CALIBRATION_SHA256 = "9a8323d4f6aea3bd85d36d55eadbc38d6eb85088451bee9682a46216ee79c70f"
         private const val AFFINE_RELATIVE_PATH = "models/j1_stage_d_affine.bin"
         private const val AFFINE_BYTES = 541040L
         private const val AFFINE_SHA256 = "066c6cf64b165abb83af93e4b1a38a4a3ffce2fa9ec476a5b3b9695466a6d76a"
