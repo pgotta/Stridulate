@@ -96,19 +96,14 @@ fun HomeScreen(
                     enabled = manualLocation.trim().length >= 2
                 ) { Text("Use location") }
             },
-            dismissButton = {
-                TextButton(onClick = { showManualLocation = false }) { Text("Cancel") }
-            },
+            dismissButton = { TextButton(onClick = { showManualLocation = false }) { Text("Cancel") } },
             containerColor = Panel2
         )
     }
 
     Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp)
-            .padding(top = 24.dp, bottom = 28.dp)
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp).padding(top = 24.dp, bottom = 28.dp)
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -124,16 +119,10 @@ fun HomeScreen(
             }
         }
         Spacer(Modifier.height(10.dp))
-        Text(
-            "Stridulate",
-            fontFamily = Fraunces,
-            fontWeight = FontWeight.Black,
-            fontSize = 48.sp,
-            color = Color.White
-        )
+        Text("Stridulate", fontFamily = Fraunces, fontWeight = FontWeight.Black, fontSize = 48.sp, color = Color.White)
         Spacer(Modifier.height(8.dp))
         Text(
-            "Identify crickets, katydids and cicadas with an on-device audio model, then compare the call, season and range in the field guide.",
+            "Identify a dominant cricket, katydid, cicada or other supported singing insect with frozen J.1 / Perch 2.0, then compare the call and field-guide details.",
             color = ParchDim,
             fontFamily = Inter,
             fontSize = 14.5.sp,
@@ -142,7 +131,7 @@ fun HomeScreen(
         Spacer(Modifier.height(15.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
             Chip("$speciesCount species", accent = true)
-            Chip(if (usingTrainedModel) "Epoch 19" else "Model unavailable")
+            Chip(if (usingTrainedModel) "Frozen J.1" else "Model unavailable")
             Chip("Audio on-device")
         }
 
@@ -172,22 +161,17 @@ fun HomeScreen(
 
         Spacer(Modifier.height(16.dp))
         Row(
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
                 .background(Brush.verticalGradient(listOf(Panel2, Panel)))
                 .border(BorderStroke(1.dp, Line), RoundedCornerShape(20.dp))
-                .clickable(enabled = usingTrainedModel, onClick = onListen)
-                .padding(20.dp),
+                .clickable(enabled = usingTrainedModel, onClick = onListen).padding(20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 Modifier.size(60.dp).clip(CircleShape)
                     .background(Brush.radialGradient(listOf(Danger, Color(0xFF7A221A)))),
                 contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Filled.Mic, null, tint = Color.White, modifier = Modifier.size(25.dp))
-            }
+            ) { Icon(Icons.Filled.Mic, null, tint = Color.White, modifier = Modifier.size(25.dp)) }
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
                 Text("Start listening", fontFamily = Fraunces, fontSize = 21.sp, color = Parch)
@@ -204,26 +188,16 @@ fun HomeScreen(
 
         Spacer(Modifier.height(10.dp))
         Row(
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(15.dp))
-                .background(Panel)
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(Panel)
                 .border(BorderStroke(1.dp, Line), RoundedCornerShape(15.dp))
-                .clickable(enabled = usingTrainedModel, onClick = onImport)
-                .padding(16.dp),
+                .clickable(enabled = usingTrainedModel, onClick = onImport).padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("🎞️", fontSize = 24.sp)
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text("Analyze a recording", fontFamily = Fraunces, fontSize = 17.sp, color = Parch)
-                Text(
-                    "AUDIO OR VIDEO · UP TO 30 SECONDS",
-                    fontFamily = JetBrainsMono,
-                    fontSize = 9.sp,
-                    color = Mute,
-                    letterSpacing = 0.8.sp
-                )
+                Text("AUDIO OR VIDEO · UP TO 30 SECONDS", fontFamily = JetBrainsMono, fontSize = 9.sp, color = Mute, letterSpacing = 0.8.sp)
             }
             Text("›", color = Amber, fontSize = 25.sp)
         }
@@ -232,22 +206,12 @@ fun HomeScreen(
         SectionHeader("Explore")
         Spacer(Modifier.height(11.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            HomeTile("📖", "Field guide", "$speciesCount TIER 1 SPECIES", onOpenGuide)
-            HomeTile(
-                "🌙",
-                "Log",
-                if (sessionCount > 0) "$sessionCount HEARD" else "SAVED RECORDINGS",
-                onOpenSession
-            )
+            HomeTile("📖", "Field guide", "$speciesCount SUPPORTED SPECIES", onOpenGuide)
+            HomeTile("🌙", "Log", if (sessionCount > 0) "$sessionCount HEARD" else "SAVED RECORDINGS", onOpenSession)
         }
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            HomeTile(
-                "?",
-                "Unknowns",
-                if (unknownCount > 0) "$unknownCount SAVED" else "COMMUNITY ID",
-                onOpenCommunity
-            )
+            HomeTile("?", "Unknowns", if (unknownCount > 0) "$unknownCount SAVED" else "COMMUNITY ID", onOpenCommunity)
             HomeTile("🗺", "Range map", "LIKELY IN YOUR REGION", onOpenMap)
         }
     }
@@ -292,10 +256,7 @@ private fun ObservationContextCard(
         if (!context.enabled) {
             Text(
                 "Adds broad region, current season, true day/night status and current outdoor weather as gentle ranking support. Live recordings refresh automatically after 10 minutes.",
-                fontFamily = Inter,
-                fontSize = 12.5.sp,
-                color = ParchDim,
-                lineHeight = 18.sp
+                fontFamily = Inter, fontSize = 12.5.sp, color = ParchDim, lineHeight = 18.sp
             )
             Spacer(Modifier.height(11.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -312,10 +273,7 @@ private fun ObservationContextCard(
             } else {
                 Text(
                     context.locationLabel ?: context.region.displayName,
-                    fontFamily = Inter,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 13.5.sp,
-                    color = Parch
+                    fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 13.5.sp, color = Parch
                 )
                 Spacer(Modifier.height(5.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -349,10 +307,7 @@ private fun ObservationContextCard(
                             context.hasUsableTemperatureFallback -> "Open-Meteo offline fallback · displayed only after 30 minutes"
                             else -> "Weather expired · refresh before using temperature context"
                         },
-                        fontFamily = JetBrainsMono,
-                        fontSize = 8.5.sp,
-                        color = Mute,
-                        modifier = Modifier.padding(top = 4.dp)
+                        fontFamily = JetBrainsMono, fontSize = 8.5.sp, color = Mute, modifier = Modifier.padding(top = 4.dp)
                     )
                 }
             }
@@ -367,12 +322,7 @@ private fun ObservationContextCard(
 }
 
 @Composable
-private fun ContextAction(
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true
-) {
+private fun ContextAction(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
     Box(
         modifier.clip(RoundedCornerShape(9.dp)).border(BorderStroke(1.dp, Line), RoundedCornerShape(9.dp))
             .clickable(enabled = enabled, onClick = onClick).padding(horizontal = 9.dp, vertical = 9.dp),
@@ -385,13 +335,8 @@ private fun ContextAction(
 @Composable
 private fun RowScope.HomeTile(icon: String, title: String, sub: String, onClick: () -> Unit) {
     Column(
-        Modifier
-            .weight(1f)
-            .clip(RoundedCornerShape(15.dp))
-            .background(Panel)
-            .border(BorderStroke(1.dp, Line), RoundedCornerShape(15.dp))
-            .clickable(onClick = onClick)
-            .padding(16.dp),
+        Modifier.weight(1f).clip(RoundedCornerShape(15.dp)).background(Panel)
+            .border(BorderStroke(1.dp, Line), RoundedCornerShape(15.dp)).clickable(onClick = onClick).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(icon, fontSize = 22.sp)
