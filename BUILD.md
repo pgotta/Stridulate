@@ -80,11 +80,13 @@ Expected calibration:
 
 ```text
 file: j1_calibration.json
-sha256: d4a45f2902a48b49b584157c8c603f40ea99445e02ae623012e1ec27cd6dc75e
+source artifact: global_stage_d_independent_field_balanced_calibration.json
+bytes: 69561
+sha256: 9a8323d4f6aea3bd85d36d55eadbc38d6eb85088451bee9682a46216ee79c70f
 species: 88
 ```
 
-The app verifies these contracts again before inference.
+This is the original archived frozen J.1 calibration artifact, staged under the shorter Android runtime filename `j1_calibration.json` without transforming its contents. The app verifies these contracts again before inference.
 
 ## Recommended Windows build + install
 
@@ -100,7 +102,7 @@ The helper is designed to:
 2. clone/update the private GitHub source;
 3. run `verification/verify_final_j_android.py`;
 4. obtain the exact pinned Perch ONNX if it is not cached;
-5. verify Perch, the J.1 affine head and the J.1 calibration by SHA-256;
+5. verify Perch, the J.1 affine head and the original J.1 calibration by SHA-256;
 6. build `:app:assembleDebug` locally;
 7. run `verification/verify_final_j_apk.py`;
 8. require one connected Android device;
@@ -158,7 +160,7 @@ This validates, among other contracts:
 - app ID/version;
 - ONNX Runtime version;
 - expected Perch size/hash in source constants;
-- expected affine/calibration hashes in source constants;
+- expected affine/original-calibration hashes and sizes in source constants;
 - sound-sensitivity default;
 - result wording/navigation hooks;
 - saved-Unknown reanalysis hook;
