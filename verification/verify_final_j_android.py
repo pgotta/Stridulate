@@ -12,6 +12,8 @@ EXPECTED = {
 }
 PERCH_SHA='4dcf71c18a147198545944bb5149697e89e3ad2e16637fa8f0edf6d13035a017'
 PERCH_BYTES=413350933
+CALIBRATION_SHA='9a8323d4f6aea3bd85d36d55eadbc38d6eb85088451bee9682a46216ee79c70f'
+CALIBRATION_BYTES=69561
 
 def fail(msg: str):
     raise SystemExit('VERIFY FAIL: ' + msg)
@@ -33,7 +35,13 @@ for token in ['applicationId = "com.pgotta.stridulate"','versionCode = 15','vers
     if token not in build: fail(f'build contract missing {token}')
 
 classifier=(JAVA/'classifier/TfLiteClassifier.kt').read_text()
-for token in [PERCH_SHA, str(PERCH_BYTES), 'models/perch_v2_no_dft.onnx','models/j1_stage_d_affine.bin','066c6cf64b165abb83af93e4b1a38a4a3ffce2fa9ec476a5b3b9695466a6d76a','models/j1_calibration.json','d4a45f2902a48b49b584157c8c603f40ea99445e02ae623012e1ec27cd6dc75e','Frozen J.1','WINDOW_SAMPLES = 160000','SAMPLE_RATE = 32000']:
+for token in [
+    PERCH_SHA, str(PERCH_BYTES), 'models/perch_v2_no_dft.onnx',
+    'models/j1_stage_d_affine.bin', '066c6cf64b165abb83af93e4b1a38a4a3ffce2fa9ec476a5b3b9695466a6d76a',
+    'models/j1_calibration.json', CALIBRATION_SHA, 'CALIBRATION_BYTES = 69561L',
+    'STAGE_D_TEMPERATURE = 4.0', 'root.getJSONObject("session_policy")',
+    'Frozen J.1', 'WINDOW_SAMPLES = 160000', 'SAMPLE_RATE = 32000'
+]:
     if token not in classifier: fail(f'classifier contract missing {token}')
 
 sensitivity=(JAVA/'audio/SoundSensitivity.kt').read_text()
@@ -53,4 +61,4 @@ for runtime in ['perch_v2_no_dft.onnx','j1_stage_d_affine.bin','j1_calibration.j
     if (ASSETS/runtime).exists(): fail(f'{runtime} must be staged at install time, not committed in assets')
 
 print('FINAL J ANDROID VERIFY PASS')
-print(f'labels={len(labels)} affine=541040 bytes perch={PERCH_BYTES} bytes (external staged runtime)')
+print(f'labels={len(labels)} affine=541040 bytes calibration={CALIBRATION_BYTES} bytes perch={PERCH_BYTES} bytes (external staged runtime)')
