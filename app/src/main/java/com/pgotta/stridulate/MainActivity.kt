@@ -360,6 +360,7 @@ fun StridulateApp(
                     onExportTestFeedback = vm::requestTestFeedbackExport,
                     onClearTestFeedback = vm::clearTestFeedback,
                     onMarkCurrentNoise = vm::recordCurrentLiveWindowAsNoise,
+                    onPossibleMatchSensitivityChanged = vm::setLivePossibleMatchSensitivity,
                     onTestFeedback = vm::recordLiveTestFeedback,
                     onStop = {
                         tab = Tab.Session

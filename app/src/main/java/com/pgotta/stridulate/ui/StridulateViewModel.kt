@@ -8,6 +8,7 @@ import com.pgotta.stridulate.audio.AudioFileDecoder
 import com.pgotta.stridulate.audio.ClipAnalyzer
 import com.pgotta.stridulate.audio.FeatureExtractor
 import com.pgotta.stridulate.audio.InsectSignalAssessment
+import com.pgotta.stridulate.audio.InsectSignalGate
 import com.pgotta.stridulate.audio.MeasuredSignature
 import com.pgotta.stridulate.audio.MicRecorder
 import com.pgotta.stridulate.audio.PossibleMatchGate
@@ -267,6 +268,11 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
     private var lastLiveFeedbackSnapshot: TestFeedbackSnapshot? = null
     private val liveCandidateStreaks = mutableMapOf<String, Int>()
     private var previousRawLiveLabels: Set<String> = emptySet()
+    private var lastLiveAnalysisResult: ClipAnalyzer.Result? = null
+    private var lastLiveRawTopThree: List<Candidate> = emptyList()
+    private var lastLiveRawPcm: FloatArray = FloatArray(0)
+    private var lastLiveRawSampleRate: Int = 0
+    private var liveGateRefreshJob: Job? = null
 
     private var liveExtractor: FeatureExtractor? = null
     private var workJob: Job? = null
@@ -395,6 +401,51 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
         testFeedbackRepository.record(FeedbackVerdict.NOISE, null, snapshot)
     }
 
+    /**
+     * Re-evaluate only the cheap raw-audio/display gates for the most recent live window.
+     * Frozen Perch/J.1 inference is intentionally not rerun while the user drags the gate.
+     */
+    fun setLivePossibleMatchSensitivity(value: Float) {
+        PossibleMatchGate.set(getApplication<Application>(), value.coerceIn(0f, 1f))
+        val result = lastLiveAnalysisResult ?: return
+        val rawTopThree = lastLiveRawTopThree
+        val rawPcm = lastLiveRawPcm
+        val sampleRate = lastLiveRawSampleRate
+        if (rawPcm.isEmpty() || sampleRate <= 0) return
+
+        liveGateRefreshJob?.cancel()
+        liveGateRefreshJob = viewModelScope.launch(Dispatchers.Default) {
+            val assessment = InsectSignalGate.assess(
+                rawSamples = rawPcm,
+                sampleRate = sampleRate,
+                signature = result.rawSignature,
+                quality = result.rawQuality,
+                sensitivityLevel = PossibleMatchGate.level
+            )
+            // A fresh rolling window wins over a stale slider refresh.
+            if (lastLiveRawPcm !== rawPcm || lastLiveAnalysisResult !== result) return@launch
+            _liveSignalAssessment.value = assessment
+            _liveCandidates.value = filterLiveCandidates(rawTopThree, result, assessment)
+        }
+    }
+
+    private fun filterLiveCandidates(
+        rawTopThree: List<Candidate>,
+        result: ClipAnalyzer.Result,
+        assessment: InsectSignalAssessment
+    ): List<Candidate> {
+        if (!assessment.passed) return emptyList()
+        return rawTopThree.filter { candidate ->
+            candidate.evidenceAccepted == true ||
+                (candidate.callCompatibilityPassed != false && PossibleMatchGate.allows(
+                    candidate = candidate,
+                    quality = result.quality,
+                    signature = result.signature,
+                    consecutiveWindows = liveCandidateStreaks[candidate.label] ?: 1
+                ))
+        }
+    }
+
     fun startListening() {
         cancelAnalysis(silent = true)
         liveAnalysisJob?.cancel()
@@ -413,6 +464,12 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
         lastLiveFeedbackSnapshot = null
         liveCandidateStreaks.clear()
         previousRawLiveLabels = emptySet()
+        lastLiveAnalysisResult = null
+        lastLiveRawTopThree = emptyList()
+        lastLiveRawPcm = FloatArray(0)
+        lastLiveRawSampleRate = 0
+        liveGateRefreshJob?.cancel()
+        liveGateRefreshJob = null
         PossibleMatchGate.initialize(getApplication<Application>())
         _liveDetections.value = emptyList()
         _recordingElapsedSeconds.value = 0.0
@@ -445,6 +502,9 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
         val (pcm, pcmSr) = mic.capturedPcm()
         if (pcm.size < pcmSr * 5) return
         val result = withContext(Dispatchers.Default) { clipAnalyzer.analyze(pcm, pcmSr) } ?: return
+        lastLiveAnalysisResult = result
+        lastLiveRawPcm = pcm
+        lastLiveRawSampleRate = pcmSr
         _liveSignalAssessment.value = result.signalAssessment
 
         // Discovery view: preserve useful below-J.1 candidates, but do not force arbitrary
@@ -456,6 +516,7 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
             .sortedByDescending { it.audioConfidence }
             .take(3)
             .toList()
+        lastLiveRawTopThree = rawTopThree
         val rawLabels = rawTopThree.map { it.label }.toSet()
         rawTopThree.forEach { candidate ->
             liveCandidateStreaks[candidate.label] =
@@ -468,22 +529,7 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
         liveCandidateStreaks.keys.retainAll(rawLabels)
         previousRawLiveLabels = rawLabels
 
-        _liveCandidates.value = if (!result.signalAssessment.passed) {
-            emptyList()
-        } else {
-            rawTopThree.filter { candidate ->
-                // A J.1 threshold-passing candidate remains visible for QA even if its specific
-                // call-profile check later vetoes accepted/logged status. Below-threshold
-                // candidates must pass both the display gate and any trusted gross profile check.
-                candidate.evidenceAccepted == true ||
-                    (candidate.callCompatibilityPassed != false && PossibleMatchGate.allows(
-                        candidate = candidate,
-                        quality = result.quality,
-                        signature = result.signature,
-                        consecutiveWindows = liveCandidateStreaks[candidate.label] ?: 1
-                    ))
-            }
-        }
+        _liveCandidates.value = filterLiveCandidates(rawTopThree, result, result.signalAssessment)
 
         val feedbackNow = _recordingElapsedSeconds.value
         lastLiveFeedbackSnapshot = TestFeedbackSnapshot(
@@ -581,6 +627,12 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
             lastLiveFeedbackSnapshot = null
             liveCandidateStreaks.clear()
             previousRawLiveLabels = emptySet()
+            lastLiveAnalysisResult = null
+            lastLiveRawTopThree = emptyList()
+            lastLiveRawPcm = FloatArray(0)
+            lastLiveRawSampleRate = 0
+            liveGateRefreshJob?.cancel()
+            liveGateRefreshJob = null
             _ui.value = UiState.Idle
         }
     }
@@ -598,6 +650,12 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
         lastLiveFeedbackSnapshot = null
         liveCandidateStreaks.clear()
         previousRawLiveLabels = emptySet()
+        lastLiveAnalysisResult = null
+        lastLiveRawTopThree = emptyList()
+        lastLiveRawPcm = FloatArray(0)
+        lastLiveRawSampleRate = 0
+        liveGateRefreshJob?.cancel()
+        liveGateRefreshJob = null
         _ui.value = UiState.Idle
     }
 

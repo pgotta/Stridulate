@@ -91,7 +91,8 @@ fun ProceduralSpectrogram(kind: String, modifier: Modifier = Modifier, seed: Int
 fun RealSpectrogram(
     columns: List<FloatArray>,
     modifier: Modifier = Modifier,
-    markerFractions: List<Float> = emptyList()
+    markerFractions: List<Float> = emptyList(),
+    activeMarkerFraction: Float? = null
 ) {
     Canvas(modifier = modifier) {
         val w = size.width; val h = size.height
@@ -114,11 +115,26 @@ fun RealSpectrogram(
         markerFractions.forEach { fraction ->
             val x = fraction.coerceIn(0f, 1f) * w
             drawLine(
-                color = Color(0xFFF0B44D),
+                color = Color(0x99F0B44D),
                 start = Offset(x, 0f),
                 end = Offset(x, h),
-                strokeWidth = 2.5f,
+                strokeWidth = 2.0f,
                 cap = StrokeCap.Round
+            )
+        }
+        activeMarkerFraction?.let { fraction ->
+            val x = fraction.coerceIn(0f, 1f) * w
+            drawLine(
+                color = Color(0xFFFFB13B),
+                start = Offset(x, 0f),
+                end = Offset(x, h),
+                strokeWidth = 4.5f,
+                cap = StrokeCap.Round
+            )
+            drawCircle(
+                color = Color(0xFFFFB13B),
+                radius = 5.5f,
+                center = Offset(x, 9f)
             )
         }
     }
