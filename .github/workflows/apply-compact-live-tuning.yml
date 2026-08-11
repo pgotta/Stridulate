@@ -1,0 +1,46 @@
+name: Apply compact live tuning
+
+on:
+  push:
+    branches:
+      - agent/v0.3-compact-live-tuning2
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: "${{ github.event.head_commit.message != 'ui: compact live tuning' }}"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/v0.3-compact-live-tuning2
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Apply patch and verify source contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/apply_compact_live_tuning.py
+          python verification/verify_final_j_android.py
+          python verification/verify_qa_feedback.py
+          python verification/verify_possible_match_gate.py
+
+      - name: Commit source changes only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "pgotta"
+          git config user.email "168211683+pgotta@users.noreply.github.com"
+          git add app/src/main/java verification/verify_possible_match_gate.py
+          if git diff --cached --quiet; then
+            echo "No source changes to commit"
+            exit 0
+          fi
+          git commit -m "ui: compact live tuning"
+          git push origin HEAD:agent/v0.3-compact-live-tuning2
