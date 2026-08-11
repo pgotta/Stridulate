@@ -49,6 +49,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pgotta.stridulate.audio.RecordedSegmentPlayer
 import com.pgotta.stridulate.audio.ReferenceSoundPlayer
 import com.pgotta.stridulate.community.CommunityShare
+import com.pgotta.stridulate.qa.TestFeedbackShare
 import com.pgotta.stridulate.ui.CommunityShareRequest
 import com.pgotta.stridulate.ui.StridulateViewModel
 import com.pgotta.stridulate.ui.UiState
@@ -136,6 +137,9 @@ fun StridulateApp(
     val communityBusy by vm.communityBusy.collectAsState()
     val communityNotice by vm.communityNotice.collectAsState()
     val communityShareRequest by vm.communityShareRequest.collectAsState()
+    val testFeedbackCount by vm.testFeedbackCount.collectAsState()
+    val testTargetKey by vm.testTargetKey.collectAsState()
+    val testFeedbackExportRequest by vm.testFeedbackExportRequest.collectAsState()
 
     var tab by rememberSaveable { mutableStateOf(Tab.Home) }
     var guideId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -227,6 +231,17 @@ fun StridulateApp(
             vm.showCommunityNotice(e.message ?: "Could not open the share sheet.")
         } finally {
             vm.clearCommunityShareRequest()
+        }
+    }
+
+    LaunchedEffect(testFeedbackExportRequest) {
+        val path = testFeedbackExportRequest ?: return@LaunchedEffect
+        try {
+            TestFeedbackShare.share(context, File(path))
+        } catch (e: Exception) {
+            vm.showCommunityNotice(e.message ?: "Could not export the QA test log.")
+        } finally {
+            vm.clearTestFeedbackExportRequest()
         }
     }
 
@@ -334,6 +349,15 @@ fun StridulateApp(
                     candidates = liveCandidates,
                     detections = liveDetections,
                     elapsedSeconds = recordingElapsedSeconds,
+                    testSpecies = vm.tier1Species,
+                    testTargetKey = testTargetKey,
+                    testFeedbackCount = testFeedbackCount,
+                    onSetTestTargetSpecies = vm::setTestTargetSpecies,
+                    onSetTestTargetNoise = vm::setTestTargetNoise,
+                    onClearTestTarget = vm::clearTestTarget,
+                    onExportTestFeedback = vm::requestTestFeedbackExport,
+                    onClearTestFeedback = vm::clearTestFeedback,
+                    onTestFeedback = vm::recordLiveTestFeedback,
                     onStop = {
                         tab = Tab.Session
                         vm.stopAndSaveLog()
@@ -355,7 +379,16 @@ fun StridulateApp(
                         vm.dismissResult()
                         tab = Tab.Community
                         communityRecordId = savedId
-                    }
+                    },
+                    testSpecies = vm.tier1Species,
+                    testTargetKey = testTargetKey,
+                    testFeedbackCount = testFeedbackCount,
+                    onSetTestTargetSpecies = vm::setTestTargetSpecies,
+                    onSetTestTargetNoise = vm::setTestTargetNoise,
+                    onClearTestTarget = vm::clearTestTarget,
+                    onExportTestFeedback = vm::requestTestFeedbackExport,
+                    onClearTestFeedback = vm::clearTestFeedback,
+                    onTestFeedback = vm::recordResultTestFeedback
                 )
                 is UiState.Error -> ErrorScreen(s.message) { vm.dismissResult() }
                 UiState.Idle -> {

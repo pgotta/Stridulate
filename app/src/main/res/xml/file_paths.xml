@@ -2,4 +2,5 @@
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <files-path name="community_recordings" path="community_observations/" />
     <cache-path name="community_exports" path="community_exports/" />
+    <cache-path name="test_feedback_exports" path="test_feedback_exports/" />
 </paths>

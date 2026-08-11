@@ -44,8 +44,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pgotta.stridulate.audio.SoundSensitivity
 import com.pgotta.stridulate.classifier.Candidate
+import com.pgotta.stridulate.data.Species
+import com.pgotta.stridulate.qa.FeedbackVerdict
 import com.pgotta.stridulate.ui.Detection
+import com.pgotta.stridulate.ui.components.CandidateFeedbackButtons
 import com.pgotta.stridulate.ui.components.PrimaryButton
+import com.pgotta.stridulate.ui.components.TestFeedbackPanel
 import com.pgotta.stridulate.ui.components.RealSpectrogram
 import com.pgotta.stridulate.ui.components.SpeciesThumbnail
 import com.pgotta.stridulate.ui.theme.Amber
@@ -78,6 +82,15 @@ fun ListenScreen(
     candidates: List<Candidate>,
     detections: List<Detection>,
     elapsedSeconds: Double,
+    testSpecies: List<Species>,
+    testTargetKey: String?,
+    testFeedbackCount: Int,
+    onSetTestTargetSpecies: (Species) -> Unit,
+    onSetTestTargetNoise: () -> Unit,
+    onClearTestTarget: () -> Unit,
+    onExportTestFeedback: () -> Unit,
+    onClearTestFeedback: () -> Unit,
+    onTestFeedback: (String, FeedbackVerdict) -> Unit,
     onStop: () -> Unit,
     onCancel: () -> Unit
 ) {
@@ -185,6 +198,18 @@ fun ListenScreen(
         }
 
         Spacer(Modifier.height(7.dp))
+        TestFeedbackPanel(
+            species = testSpecies,
+            targetKey = testTargetKey,
+            feedbackCount = testFeedbackCount,
+            onSetSpeciesTarget = onSetTestTargetSpecies,
+            onSetNoiseTarget = onSetTestTargetNoise,
+            onClearTarget = onClearTestTarget,
+            onExport = onExportTestFeedback,
+            onClearLog = onClearTestFeedback
+        )
+
+        Spacer(Modifier.height(7.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 "LIVE POSSIBLE MATCHES",
@@ -234,7 +259,7 @@ fun ListenScreen(
                 verticalArrangement = Arrangement.spacedBy(7.dp)
             ) {
                 itemsIndexed(candidates.take(3), key = { _, candidate -> candidate.label }) { index, candidate ->
-                    LiveCandidateRow(index + 1, candidate)
+                    LiveCandidateRow(index + 1, candidate) { verdict -> onTestFeedback(candidate.label, verdict) }
                 }
                 item {
                     Text(
@@ -261,7 +286,7 @@ fun ListenScreen(
 }
 
 @Composable
-private fun LiveCandidateRow(rank: Int, candidate: Candidate) {
+private fun LiveCandidateRow(rank: Int, candidate: Candidate, onFeedback: (FeedbackVerdict) -> Unit) {
     val species = candidate.species ?: return
     val scorePct = (candidate.audioConfidence * 100.0).roundToInt().coerceIn(0, 100)
     val thresholdPct = candidate.acceptanceThreshold?.let { (it * 100.0).roundToInt().coerceIn(0, 100) }
@@ -318,5 +343,7 @@ private fun LiveCandidateRow(rank: Int, candidate: Candidate) {
                     .background(statusColor)
             )
         }
+        Spacer(Modifier.height(7.dp))
+        CandidateFeedbackButtons(onFeedback)
     }
 }

@@ -12,6 +12,7 @@ import com.pgotta.stridulate.audio.MicRecorder
 import com.pgotta.stridulate.audio.RecordedSegmentPlayer
 import com.pgotta.stridulate.audio.ReferenceSoundPlayer
 import com.pgotta.stridulate.audio.RecordingQuality
+import com.pgotta.stridulate.audio.SoundSensitivity
 import com.pgotta.stridulate.classifier.Candidate
 import com.pgotta.stridulate.classifier.ClassificationPolicy
 import com.pgotta.stridulate.classifier.InsectClassifier
@@ -42,6 +43,9 @@ import com.pgotta.stridulate.log.DetectionLogRepository
 import com.pgotta.stridulate.log.DetectionLogSession
 import com.pgotta.stridulate.log.DetectionOccurrence
 import com.pgotta.stridulate.log.LoggedSpeciesDetection
+import com.pgotta.stridulate.qa.FeedbackVerdict
+import com.pgotta.stridulate.qa.TestFeedbackRepository
+import com.pgotta.stridulate.qa.TestFeedbackSnapshot
 import java.io.File
 import java.util.Date
 import kotlinx.coroutines.CancellationException
@@ -122,6 +126,11 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
     val tierSettings: StateFlow<DetectionTierSettings> = detectionSettingsRepository.tiers
     private val detectionLogRepository = DetectionLogRepository(app)
     val logSessions: StateFlow<List<DetectionLogSession>> = detectionLogRepository.sessions
+    private val testFeedbackRepository = TestFeedbackRepository(app)
+    val testFeedbackCount: StateFlow<Int> = testFeedbackRepository.count
+    val testTargetKey: StateFlow<String?> = testFeedbackRepository.targetKey
+    private val _testFeedbackExportRequest = MutableStateFlow<String?>(null)
+    val testFeedbackExportRequest: StateFlow<String?> = _testFeedbackExportRequest
     private val contextProfiles = ContextProfileRepository(app)
     private val contextReranker = ContextReranker(contextProfiles)
     private val environmentRepository = EnvironmentRepository(app)
@@ -249,6 +258,7 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
     // score-ranked candidates remain visible even when none crosses its J.1 threshold.
     private val _liveCandidates = MutableStateFlow<List<Candidate>>(emptyList())
     val liveCandidates: StateFlow<List<Candidate>> = _liveCandidates
+    private var lastLiveFeedbackSnapshot: TestFeedbackSnapshot? = null
 
     private var liveExtractor: FeatureExtractor? = null
     private var workJob: Job? = null
@@ -312,6 +322,50 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
         environmentRepository.markPermissionDenied()
     }
 
+    fun setTestTargetSpecies(species: Species) {
+        testFeedbackRepository.setTargetKey(modelLabel(species))
+    }
+
+    fun setTestTargetNoise() {
+        testFeedbackRepository.setTargetKey(TestFeedbackRepository.TARGET_NOISE)
+    }
+
+    fun clearTestTarget() {
+        testFeedbackRepository.setTargetKey(null)
+    }
+
+    fun clearTestFeedback() {
+        testFeedbackRepository.clear()
+    }
+
+    fun requestTestFeedbackExport() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val file = testFeedbackRepository.exportBundle()
+            _testFeedbackExportRequest.value = file.absolutePath
+        }
+    }
+
+    fun clearTestFeedbackExportRequest() {
+        _testFeedbackExportRequest.value = null
+    }
+
+    fun recordLiveTestFeedback(candidateLabel: String, verdict: FeedbackVerdict) {
+        val snapshot = lastLiveFeedbackSnapshot ?: return
+        testFeedbackRepository.record(verdict, candidateLabel, snapshot)
+    }
+
+    fun recordResultTestFeedback(candidateLabel: String, verdict: FeedbackVerdict) {
+        val result = (_ui.value as? UiState.Result)?.result ?: return
+        val snapshot = TestFeedbackSnapshot(
+            source = "result",
+            sessionKey = result.communityRecordId ?: result.evidenceAudio?.filePath,
+            candidates = result.candidates.take(3),
+            quality = result.recordingQuality,
+            observationContext = result.observationContext
+        )
+        testFeedbackRepository.record(verdict, candidateLabel, snapshot)
+    }
+
     fun startListening() {
         cancelAnalysis(silent = true)
         liveAnalysisJob?.cancel()
@@ -326,6 +380,7 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
     private fun beginListening() {
         _ui.value = UiState.Listening
         _liveCandidates.value = emptyList()
+        lastLiveFeedbackSnapshot = null
         _liveDetections.value = emptyList()
         _recordingElapsedSeconds.value = 0.0
         recordingStartedAtMillis = System.currentTimeMillis()
@@ -368,6 +423,16 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
             .sortedByDescending { it.audioConfidence }
             .take(3)
             .toList()
+        val feedbackNow = _recordingElapsedSeconds.value
+        lastLiveFeedbackSnapshot = TestFeedbackSnapshot(
+            source = "live",
+            sessionKey = recordingStartedAtMillis.toString(),
+            windowStartSeconds = (feedbackNow - LIVE_WINDOW_SECONDS).coerceAtLeast(0.0),
+            windowEndSeconds = feedbackNow,
+            candidates = _liveCandidates.value,
+            quality = result.quality,
+            observationContext = environment.value
+        )
 
         // Decision/logging view: classifier order intentionally keeps any J.1-accepted species
         // ahead of below-threshold candidates. Only this path is gated.
@@ -446,6 +511,7 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
             }
             _recordingElapsedSeconds.value = 0.0
             _liveCandidates.value = emptyList()
+            lastLiveFeedbackSnapshot = null
             _ui.value = UiState.Idle
         }
     }
@@ -459,6 +525,7 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
         _liveDetections.value = emptyList()
         _recordingElapsedSeconds.value = 0.0
         _liveCandidates.value = emptyList()
+        lastLiveFeedbackSnapshot = null
         _ui.value = UiState.Idle
     }
 

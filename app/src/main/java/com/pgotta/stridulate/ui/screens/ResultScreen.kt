@@ -30,13 +30,16 @@ import com.pgotta.stridulate.audio.ReferenceSoundPlayer
 import com.pgotta.stridulate.classifier.Candidate
 import com.pgotta.stridulate.data.ReliabilityTier
 import com.pgotta.stridulate.data.Species
+import com.pgotta.stridulate.qa.FeedbackVerdict
 import com.pgotta.stridulate.ui.IdResult
 import com.pgotta.stridulate.ui.IdentificationDecision
 import com.pgotta.stridulate.ui.StridulateViewModel
+import com.pgotta.stridulate.ui.components.CandidateFeedbackButtons
 import com.pgotta.stridulate.ui.components.ConfidenceRing
 import com.pgotta.stridulate.ui.components.GhostButton
 import com.pgotta.stridulate.ui.components.PrimaryButton
 import com.pgotta.stridulate.ui.components.ProceduralSpectrogram
+import com.pgotta.stridulate.ui.components.TestFeedbackPanel
 import com.pgotta.stridulate.ui.theme.*
 import kotlin.math.roundToInt
 
@@ -50,7 +53,16 @@ fun ResultScreen(
     onRefreshContext: () -> Unit = {},
     onSaveForCommunity: () -> Unit = {},
     onShareForIdentification: (String) -> Unit = {},
-    onOpenCommunity: () -> Unit = {}
+    onOpenCommunity: () -> Unit = {},
+    testSpecies: List<Species> = emptyList(),
+    testTargetKey: String? = null,
+    testFeedbackCount: Int = 0,
+    onSetTestTargetSpecies: (Species) -> Unit = {},
+    onSetTestTargetNoise: () -> Unit = {},
+    onClearTestTarget: () -> Unit = {},
+    onExportTestFeedback: () -> Unit = {},
+    onClearTestFeedback: () -> Unit = {},
+    onTestFeedback: (String, FeedbackVerdict) -> Unit = { _, _ -> }
 ) {
     val vm: StridulateViewModel = viewModel()
     val scrollState = rememberScrollState()
@@ -226,6 +238,18 @@ fun ResultScreen(
             Spacer(Modifier.height(18.dp))
             ObservationContextResultCard(result, canRefreshContext, onRefreshContext)
 
+            Spacer(Modifier.height(18.dp))
+            TestFeedbackPanel(
+                species = testSpecies,
+                targetKey = testTargetKey,
+                feedbackCount = testFeedbackCount,
+                onSetSpeciesTarget = onSetTestTargetSpecies,
+                onSetNoiseTarget = onSetTestTargetNoise,
+                onClearTarget = onClearTestTarget,
+                onExport = onExportTestFeedback,
+                onClearLog = onClearTestFeedback
+            )
+
             Spacer(Modifier.height(23.dp))
             Text("TOP 3 SPECIES MATCHES", color = Amber, fontFamily = JetBrainsMono, fontSize = 11.sp, letterSpacing = 2.sp)
             Spacer(Modifier.height(5.dp))
@@ -243,6 +267,8 @@ fun ResultScreen(
             Spacer(Modifier.height(10.dp))
             result.candidates.take(3).forEachIndexed { index, candidate ->
                 SpeciesMatchRow(index + 1, candidate) { candidate.species?.let { localGuideId = it.id } }
+                Spacer(Modifier.height(5.dp))
+                CandidateFeedbackButtons { verdict -> onTestFeedback(candidate.label, verdict) }
                 Spacer(Modifier.height(8.dp))
             }
 

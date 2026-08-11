@@ -27,6 +27,9 @@ jobs:
       - name: Verify frozen J.1 Android contracts
         run: python verification/verify_final_j_android.py
 
+      - name: Verify beta QA feedback contracts
+        run: python verification/verify_qa_feedback.py
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
