@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.3 — Frozen J.1 / Perch 2.0 Android research build
+
+- Normalized the public pre-release version to **v0.3**. Stridulate remains very beta and is not a production release.
+- Replaced the active Android detector with frozen Stage J.1 / Perch 2.0 for 88 supported acoustic classes.
+- Added frozen per-species J.1 calibration/acceptance thresholds and long-session persistence behavior.
+- Added `High confidence`, `Likely match`, and `No confident match` result wording.
+- Added exact field-guide navigation from the primary result and Top 3 candidates.
+- Added Sound sensitivity, OFF by default, with up to 4× analysis/spectrogram gain while preserving the original saved WAV.
+- Added non-destructive re-analysis of saved Unknown WAVs with frozen J.1.
+- Preserved `com.pgotta.stridulate` and the existing app-data layout for in-place testing updates.
+- Kept the large Perch/J.1 runtime files outside the APK and added checksum verification/staging through the Windows helper.
+- Closed Stage J around the dominant-caller baseline; simultaneous multi-source work moves to Stage K.
+
+> Earlier changelog headings below are retained as historical internal build labels from before the public pre-release numbering was normalized.
+
 ## 2.3.2 — GitHub proof-of-concept bundle and non-blocking context
 
 - Added five current Android screenshots to `docs/screenshots` and a README gallery for GitHub.
