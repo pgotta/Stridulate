@@ -29,11 +29,12 @@ jobs:
           python verification/verify_qa_feedback.py
           python verification/verify_possible_match_gate.py
 
-      - name: Commit clean source tree
+      - name: Commit source changes
         shell: bash
         run: |
-          rm -f tools/apply_v03_live_noise_gate.py
-          rm -f .github/workflows/apply-v03-live-noise-gate.yml
+          # GitHub Apps cannot push workflow-file changes without special workflow permission.
+          # Revert the normal CI workflow edit here; the PR's existing Android CI still compiles the app.
+          git checkout -- .github/workflows/android-build.yml
           git config user.name "pgotta"
           git config user.email "168211683+pgotta@users.noreply.github.com"
           git add -A
