@@ -55,7 +55,15 @@ fun ResultScreen(
     val vm: StridulateViewModel = viewModel()
     val scrollState = rememberScrollState()
     var localGuideId by remember(result) { mutableStateOf<String?>(null) }
-    val top = result.candidates.firstOrNull()
+    // The main decision card follows the actual J.1 accepted/decision candidate, while the
+    // Top 3 section below remains score-ranked for discovery even when candidates are below gate.
+    val top = if (result.decision == IdentificationDecision.NO_CONFIDENT_MATCH) {
+        result.candidates.maxByOrNull { it.audioConfidence }
+    } else {
+        result.allAudioCandidates.firstOrNull { it.label == result.modelTopLabel }
+            ?: result.candidates.firstOrNull { it.label == result.modelTopLabel }
+            ?: result.candidates.firstOrNull()
+    }
     val species = top?.species
     val percentage = ((top?.audioConfidence ?: result.modelTopConfidence) * 100).roundToInt()
     val signature = result.signature
@@ -225,7 +233,7 @@ fun ResultScreen(
                 if (result.contextApplied) {
                     "Ranked with small region/season/time adjustments. Percentages remain frozen J.1 audio evidence scores, not scientific certainty."
                 } else {
-                    "Ranked by frozen J.1 audio evidence. Confirm candidates against the call and field-guide information."
+                    "Score-ranked frozen J.1 possibilities are shown even below their acceptance gates. A gate controls identification wording, not whether a useful candidate is visible."
                 },
                 fontFamily = Inter,
                 fontSize = 11.5.sp,
@@ -506,14 +514,34 @@ private fun SpeciesMatchRow(rank: Int, candidate: Candidate, onClick: () -> Unit
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text("$percentage%", fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Parch)
-                Text(candidate.reliability.tier.displayName.uppercase(), fontFamily = JetBrainsMono, fontSize = 8.sp, color = tierColor(candidate.reliability.tier))
+                val thresholdPct = candidate.acceptanceThreshold?.let { (it * 100).roundToInt() }
+                Text(
+                    when {
+                        candidate.evidenceAccepted == true -> "PASSES J.1 GATE"
+                        thresholdPct != null -> "BELOW GATE · NEEDS $thresholdPct%"
+                        else -> "POSSIBLE RESULT"
+                    },
+                    fontFamily = JetBrainsMono,
+                    fontSize = 7.5.sp,
+                    color = if (candidate.evidenceAccepted == true) Biolume else Amber
+                )
             }
         }
         Spacer(Modifier.height(9.dp))
         Box(Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(100.dp)).background(Panel2)) {
             Box(
                 Modifier.fillMaxHeight().fillMaxWidth(candidate.audioConfidence.toFloat().coerceIn(0f, 1f))
-                    .background(tierColor(candidate.reliability.tier))
+                    .background(if (candidate.evidenceAccepted == true) Biolume else Amber)
+            )
+        }
+        candidate.acceptanceThreshold?.let { threshold ->
+            Spacer(Modifier.height(7.dp))
+            Text(
+                "J.1 gate: ${if (candidate.evidenceAccepted == true) "PASSED" else "NOT PASSED"} · score $percentage% · requires ${(threshold * 100).roundToInt()}%",
+                fontFamily = JetBrainsMono,
+                fontSize = 9.5.sp,
+                color = if (candidate.evidenceAccepted == true) Biolume else Amber,
+                lineHeight = 14.sp
             )
         }
         candidate.evidenceSupport?.let { support ->

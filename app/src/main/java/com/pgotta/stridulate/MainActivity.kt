@@ -125,6 +125,7 @@ fun StridulateApp(
 
     val ui by vm.ui.collectAsState()
     val liveDetections by vm.liveDetections.collectAsState()
+    val liveCandidates by vm.liveCandidates.collectAsState()
     val recordingElapsedSeconds by vm.recordingElapsedSeconds.collectAsState()
     val logSessions by vm.logSessions.collectAsState()
     val tierSettings by vm.tierSettings.collectAsState()
@@ -330,6 +331,7 @@ fun StridulateApp(
                 is UiState.Listening -> ListenScreen(
                     spectrogramColumns = liveColumns.toList(),
                     loudness = loudness,
+                    candidates = liveCandidates,
                     detections = liveDetections,
                     elapsedSeconds = recordingElapsedSeconds,
                     onStop = {

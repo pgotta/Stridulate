@@ -245,8 +245,10 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
     val spectrogramColumn: StateFlow<FloatArray> get() = mic.spectrogramColumn
     val loudness: StateFlow<Float> get() = mic.loudness
 
-    private val _liveCandidate = MutableStateFlow<Candidate?>(null)
-    val liveCandidate: StateFlow<Candidate?> = _liveCandidate
+    // Live discovery is intentionally separate from the acceptance gate. The Top 3
+    // score-ranked candidates remain visible even when none crosses its J.1 threshold.
+    private val _liveCandidates = MutableStateFlow<List<Candidate>>(emptyList())
+    val liveCandidates: StateFlow<List<Candidate>> = _liveCandidates
 
     private var liveExtractor: FeatureExtractor? = null
     private var workJob: Job? = null
@@ -323,7 +325,7 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun beginListening() {
         _ui.value = UiState.Listening
-        _liveCandidate.value = null
+        _liveCandidates.value = emptyList()
         _liveDetections.value = emptyList()
         _recordingElapsedSeconds.value = 0.0
         recordingStartedAtMillis = System.currentTimeMillis()
@@ -355,6 +357,20 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
         val (pcm, pcmSr) = mic.capturedPcm()
         if (pcm.size < pcmSr * 5) return
         val result = withContext(Dispatchers.Default) { clipAnalyzer.analyze(pcm, pcmSr) } ?: return
+
+        // Discovery view: always expose the three strongest supported J.1 evidence scores.
+        // The validated acceptance gate still controls logging/"likely" wording, but it never
+        // erases a useful candidate from the live screen. This is especially important while
+        // field-testing difficult classes such as Columbian Trig and Oblong-winged Katydid.
+        _liveCandidates.value = result.candidates
+            .asSequence()
+            .filter { it.species != null }
+            .sortedByDescending { it.audioConfidence }
+            .take(3)
+            .toList()
+
+        // Decision/logging view: classifier order intentionally keeps any J.1-accepted species
+        // ahead of below-threshold candidates. Only this path is gated.
         val top = result.candidates.firstOrNull() ?: return
         val runnerUp = result.candidates.getOrNull(1)
         val policy = classifier.policy ?: return
@@ -365,15 +381,9 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
             recordingQuality = result.quality,
             policy = policy
         )
-        if (gate.type == OpenSetDecisionType.REJECTED) {
-            _liveCandidate.value = null
-            return
-        }
+        if (gate.type == OpenSetDecisionType.REJECTED) return
         val species = top.species ?: return
-        if (!tierSettings.value.allows(top.reliability.tier)) {
-            _liveCandidate.value = null
-            return
-        }
+        if (!tierSettings.value.allows(top.reliability.tier)) return
 
         val nowSeconds = _recordingElapsedSeconds.value
         val occurrence = DetectionOccurrence(
@@ -400,7 +410,6 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
             )
         }
         _liveDetections.value = listOf(updated) + current.filterNot { it.species.id == species.id }
-        _liveCandidate.value = top
     }
 
     fun stopAndIdentify() = stopAndSaveLog()
@@ -436,7 +445,7 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
                 )
             }
             _recordingElapsedSeconds.value = 0.0
-            _liveCandidate.value = null
+            _liveCandidates.value = emptyList()
             _ui.value = UiState.Idle
         }
     }
@@ -449,7 +458,7 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
         mic.discardCapture()
         _liveDetections.value = emptyList()
         _recordingElapsedSeconds.value = 0.0
-        _liveCandidate.value = null
+        _liveCandidates.value = emptyList()
         _ui.value = UiState.Idle
     }
 
@@ -601,13 +610,13 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
         val rankedOutputs = result.allAudioCandidates.ifEmpty { result.candidates }
         val reranked = contextReranker.rerank(rankedOutputs, contextSnapshot)
         val supported = reranked.candidates.filter { it.species != null }
-        val supportedTopThree = if (result.decision == IdentificationDecision.NO_CONFIDENT_MATCH) {
-            supported.take(3)
+        // The visible Top 3 is a discovery ranking, not a gate ranking. A below-threshold class
+        // with the strongest J.1 evidence must remain visible instead of being displaced by a
+        // lower-scoring class that happens to have an easier acceptance threshold.
+        val supportedTopThree = if (reranked.applied) {
+            supported.sortedByDescending { it.contextScore }.take(3)
         } else {
-            val accepted = supported.firstOrNull { it.label == result.modelTopLabel }
-                ?: rankedOutputs.firstOrNull { it.label == result.modelTopLabel }
-            if (accepted == null) supported.take(3)
-            else listOf(accepted) + supported.filterNot { it.label == accepted.label }.take(2)
+            supported.sortedByDescending { it.audioConfidence }.take(3)
         }
         return result.copy(
             candidates = supportedTopThree,
