@@ -9,6 +9,7 @@ import com.pgotta.stridulate.audio.ClipAnalyzer
 import com.pgotta.stridulate.audio.FeatureExtractor
 import com.pgotta.stridulate.audio.MeasuredSignature
 import com.pgotta.stridulate.audio.MicRecorder
+import com.pgotta.stridulate.audio.PossibleMatchGate
 import com.pgotta.stridulate.audio.RecordedSegmentPlayer
 import com.pgotta.stridulate.audio.ReferenceSoundPlayer
 import com.pgotta.stridulate.audio.RecordingQuality
@@ -259,6 +260,8 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
     private val _liveCandidates = MutableStateFlow<List<Candidate>>(emptyList())
     val liveCandidates: StateFlow<List<Candidate>> = _liveCandidates
     private var lastLiveFeedbackSnapshot: TestFeedbackSnapshot? = null
+    private val liveCandidateStreaks = mutableMapOf<String, Int>()
+    private var previousRawLiveLabels: Set<String> = emptySet()
 
     private var liveExtractor: FeatureExtractor? = null
     private var workJob: Job? = null
@@ -361,6 +364,7 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
             sessionKey = result.communityRecordId ?: result.evidenceAudio?.filePath,
             candidates = result.candidates.take(3),
             quality = result.recordingQuality,
+            signature = result.signature,
             observationContext = result.observationContext
         )
         testFeedbackRepository.record(verdict, candidateLabel, snapshot)
@@ -381,6 +385,9 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
         _ui.value = UiState.Listening
         _liveCandidates.value = emptyList()
         lastLiveFeedbackSnapshot = null
+        liveCandidateStreaks.clear()
+        previousRawLiveLabels = emptySet()
+        PossibleMatchGate.initialize(getApplication<Application>())
         _liveDetections.value = emptyList()
         _recordingElapsedSeconds.value = 0.0
         recordingStartedAtMillis = System.currentTimeMillis()
@@ -413,24 +420,45 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
         if (pcm.size < pcmSr * 5) return
         val result = withContext(Dispatchers.Default) { clipAnalyzer.analyze(pcm, pcmSr) } ?: return
 
-        // Discovery view: always expose the three strongest supported J.1 evidence scores.
-        // The validated acceptance gate still controls logging/"likely" wording, but it never
-        // erases a useful candidate from the live screen. This is especially important while
-        // field-testing difficult classes such as Columbian Trig and Oblong-winged Katydid.
-        _liveCandidates.value = result.candidates
+        // Discovery view: preserve useful below-J.1 candidates, but do not force arbitrary
+        // species onto silence/noise. The user-controlled PossibleMatchGate is deliberately
+        // separate from frozen J.1 acceptance: it only controls what the live Top 3 displays.
+        val rawTopThree = result.candidates
             .asSequence()
             .filter { it.species != null }
             .sortedByDescending { it.audioConfidence }
             .take(3)
             .toList()
+        val rawLabels = rawTopThree.map { it.label }.toSet()
+        rawTopThree.forEach { candidate ->
+            liveCandidateStreaks[candidate.label] =
+                if (candidate.label in previousRawLiveLabels) {
+                    (liveCandidateStreaks[candidate.label] ?: 0) + 1
+                } else {
+                    1
+                }
+        }
+        liveCandidateStreaks.keys.retainAll(rawLabels)
+        previousRawLiveLabels = rawLabels
+
+        _liveCandidates.value = rawTopThree.filter { candidate ->
+            PossibleMatchGate.allows(
+                candidate = candidate,
+                quality = result.quality,
+                signature = result.signature,
+                consecutiveWindows = liveCandidateStreaks[candidate.label] ?: 1
+            )
+        }
+
         val feedbackNow = _recordingElapsedSeconds.value
         lastLiveFeedbackSnapshot = TestFeedbackSnapshot(
             source = "live",
             sessionKey = recordingStartedAtMillis.toString(),
             windowStartSeconds = (feedbackNow - LIVE_WINDOW_SECONDS).coerceAtLeast(0.0),
             windowEndSeconds = feedbackNow,
-            candidates = _liveCandidates.value,
+            candidates = rawTopThree,
             quality = result.quality,
+            signature = result.signature,
             observationContext = environment.value
         )
 
@@ -512,6 +540,8 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
             _recordingElapsedSeconds.value = 0.0
             _liveCandidates.value = emptyList()
             lastLiveFeedbackSnapshot = null
+            liveCandidateStreaks.clear()
+            previousRawLiveLabels = emptySet()
             _ui.value = UiState.Idle
         }
     }
@@ -526,6 +556,8 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
         _recordingElapsedSeconds.value = 0.0
         _liveCandidates.value = emptyList()
         lastLiveFeedbackSnapshot = null
+        liveCandidateStreaks.clear()
+        previousRawLiveLabels = emptySet()
         _ui.value = UiState.Idle
     }
 

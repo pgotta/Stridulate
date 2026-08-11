@@ -21,11 +21,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pgotta.stridulate.data.Species
@@ -54,6 +56,7 @@ fun TestFeedbackPanel(
     onExport: () -> Unit,
     onClearLog: () -> Unit
 ) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
     var showTargets by remember { mutableStateOf(false) }
     var confirmClear by remember { mutableStateOf(false) }
     val targetName = when (targetKey) {
@@ -63,29 +66,49 @@ fun TestFeedbackPanel(
     }
 
     Column(
-        Modifier.fillMaxWidth().background(Panel, RoundedCornerShape(12.dp))
-            .border(BorderStroke(1.dp, Amber.copy(alpha = 0.45f)), RoundedCornerShape(12.dp))
-            .padding(10.dp)
+        Modifier.fillMaxWidth().background(Panel, RoundedCornerShape(10.dp))
+            .border(BorderStroke(1.dp, Amber.copy(alpha = 0.38f)), RoundedCornerShape(10.dp))
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("QA TEST FEEDBACK", fontFamily = JetBrainsMono, fontSize = 9.5.sp, color = Amber, letterSpacing = 1.2.sp)
-            Spacer(Modifier.weight(1f))
-            Text("$feedbackCount saved", fontFamily = JetBrainsMono, fontSize = 8.5.sp, color = Mute)
+        Row(
+            modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded }
+                .padding(horizontal = 9.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("QA", fontFamily = JetBrainsMono, fontSize = 9.sp, color = Amber, letterSpacing = 1.sp)
+            Text(
+                " · $targetName",
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                fontFamily = Inter,
+                fontSize = 10.sp,
+                color = ParchDim
+            )
+            Text(
+                "$feedbackCount saved  ${if (expanded) "▲" else "▼"}",
+                fontFamily = JetBrainsMono,
+                fontSize = 8.sp,
+                color = Mute
+            )
         }
-        Spacer(Modifier.height(5.dp))
-        Text(
-            "Set the insect you are intentionally testing. Then tap Correct / Incorrect / Noise on a visible candidate. Every tap saves the full Top 3 and J.1 gate values.",
-            fontFamily = Inter, fontSize = 10.5.sp, color = ParchDim, lineHeight = 14.sp
-        )
-        Spacer(Modifier.height(7.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            SmallAction("Target: $targetName", Amber, Modifier.weight(1f)) { showTargets = true }
-            SmallAction("Export", Biolume) { onExport() }
-            if (feedbackCount > 0) SmallAction("Clear", Danger) { confirmClear = true }
-        }
-        if (targetKey == null) {
-            Spacer(Modifier.height(5.dp))
-            Text("Tip: set a target before marking Incorrect, so the log records what it should have been.", fontFamily = Inter, fontSize = 9.5.sp, color = Mute)
+
+        if (expanded) {
+            Column(Modifier.padding(start = 10.dp, end = 10.dp, bottom = 10.dp)) {
+                Text(
+                    "Set the insect you are intentionally testing. Then tap Correct / Incorrect / Noise on a visible candidate. Every tap saves the raw Top 3, J.1 values, audio diagnostics and possible-match gate setting.",
+                    fontFamily = Inter, fontSize = 10.5.sp, color = ParchDim, lineHeight = 14.sp
+                )
+                Spacer(Modifier.height(7.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    SmallAction("Target: $targetName", Amber, Modifier.weight(1f)) { showTargets = true }
+                    SmallAction("Export", Biolume) { onExport() }
+                    if (feedbackCount > 0) SmallAction("Clear", Danger) { confirmClear = true }
+                }
+                if (targetKey == null) {
+                    Spacer(Modifier.height(5.dp))
+                    Text("Tip: set a target before marking Incorrect, so the log records what it should have been.", fontFamily = Inter, fontSize = 9.5.sp, color = Mute)
+                }
+            }
         }
     }
 
