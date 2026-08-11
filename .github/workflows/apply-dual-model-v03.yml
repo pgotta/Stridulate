@@ -49,15 +49,18 @@ jobs:
           python verification/verify_possible_match_gate.py
           python verification/verify_dual_model_comparison.py
 
-      - name: Commit intended source changes only
+      - name: Commit source changes without workflow mutation
         shell: bash
         run: |
           set -euo pipefail
+          # GitHub Actions tokens cannot update another workflow file. The normal
+          # CI workflow is updated separately through the GitHub connector after
+          # this exact source commit is pushed.
+          git restore .github/workflows/android-build.yml
           git config user.name "pgotta"
           git config user.email "168211683+pgotta@users.noreply.github.com"
           git add \
             .gitignore \
-            .github/workflows/android-build.yml \
             app/build.gradle.kts \
             app/src/main/assets/legacy_labels.txt \
             app/src/main/java/com/pgotta/stridulate/classifier/LegacyStridulateClassifier.kt \
