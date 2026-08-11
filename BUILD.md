@@ -1,6 +1,6 @@
-# Building Stridulate v3
+# Building Stridulate v0.3
 
-Stridulate v3 is the final Stage-J Android consolidation: frozen J.1 / Perch 2.0 with 88 acoustic classes.
+Stridulate v0.3 is the Stage-J Android consolidation: frozen J.1 / Perch 2.0 with 88 acoustic classes. It is still a pre-release research build, not a finished production release.
 
 Windows `.bat` files are intentionally kept out of GitHub. The downloadable build/install package contains the Windows helper and the small frozen runtime support files it needs.
 
@@ -88,7 +88,7 @@ The app verifies these contracts again before inference.
 
 ## Recommended Windows build + install
 
-Use the downloadable package supplied with v3 and double-click:
+Use the downloadable package supplied with v0.3 and double-click:
 
 ```text
 RUN_BUILD_AND_INSTALL_FINAL_ANDROID.bat
@@ -127,7 +127,7 @@ APK location:
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-A plain Android Studio APK build is not sufficient for first launch of v3 because the three frozen runtime files must also be staged into the app's private `files/models` directory. Use the Windows helper for the field-test phone.
+A plain Android Studio APK build is not sufficient for first launch of v0.3 because the three frozen runtime files must also be staged into the app's private `files/models` directory. Use the Windows helper for the field-test phone.
 
 ## Command-line build
 
@@ -217,4 +217,4 @@ Use Android Studio's bundled JDK 17 or another JDK 17 installation.
 
 ## Research boundary
 
-Stage J is closed after v3. This build intentionally preserves the strong frozen dominant-caller detector instead of deploying the failed experimental multi-source branches. Future simultaneous-source work belongs to Stage K.
+Stage J is closed after v0.3. This build intentionally preserves the strong frozen dominant-caller detector instead of deploying the failed experimental multi-source branches. Future simultaneous-source work belongs to Stage K.

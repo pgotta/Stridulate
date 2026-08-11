@@ -4,11 +4,11 @@
 
 **Private, on-device insect sound identification for Android.**
 
-Stridulate v3 uses the frozen **Stage J.1 / Perch 2.0** pipeline for 88 supported acoustic classes. The app analyzes microphone recordings and imported audio locally, shows calibrated evidence and Top 3 candidates, links results directly into the field guide, and keeps unresolved recordings in a private local **Unknowns** archive.
+Stridulate v0.3 uses the frozen **Stage J.1 / Perch 2.0** pipeline for 88 supported acoustic classes. The app analyzes microphone recordings and imported audio locally, shows calibrated evidence and Top 3 candidates, links results directly into the field guide, and keeps unresolved recordings in a private local **Unknowns** archive.
 
 ## Current model
 
-The v3 production research detector is frozen Stage J.1:
+The v0.3 production research detector is frozen Stage J.1:
 
 - Perch 2.0 ONNX waveform encoder
 - 32 kHz mono, five-second model windows
@@ -104,7 +104,7 @@ Imported recordings default to audio-only analysis because the phone's current w
 
 ## Field guide coverage
 
-All 88 frozen J.1 labels are navigable from model results. Existing hand-authored field-guide entries retain their detailed content. For newly supported labels that do not yet have a full hand-authored entry, v3 generates a conservative placeholder entry rather than inventing detailed range, season, or frequency claims.
+All 88 frozen J.1 labels are navigable from model results. Existing hand-authored field-guide entries retain their detailed content. For newly supported labels that do not yet have a full hand-authored entry, v0.3 generates a conservative placeholder entry rather than inventing detailed range, season, or frequency claims.
 
 Those placeholders can be enriched independently of the frozen model.
 
@@ -164,4 +164,4 @@ Stage J is closed. No J.8/J.9/J.10 sequence is planned.
 
 The next research stage is **Stage K**, a separate multi-source localization/separation architecture. Its job will be to find distinct acoustic objects first and then use the strong frozen J.1/Perch detector as a downstream species recognizer where appropriate.
 
-Until Stage K proves otherwise, v3 should be treated as a **dominant-caller identifier**, not a Merlin-style simultaneous chorus separator.
+Until Stage K proves otherwise, v0.3 should be treated as a **dominant-caller identifier**, not a Merlin-style simultaneous chorus separator.

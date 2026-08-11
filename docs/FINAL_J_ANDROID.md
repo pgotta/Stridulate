@@ -4,7 +4,7 @@ This document records the Android handoff after Stage J was closed.
 
 ## Production research detector
 
-Stridulate v3 uses the frozen Stage J.1 dominant-caller detector:
+Stridulate v0.3 uses the frozen Stage J.1 dominant-caller detector:
 
 ```text
 raw/decoded audio
@@ -78,7 +78,7 @@ bias: FLOAT32 [88]
 
 ```text
 file: j1_calibration.json
-sha256: d4a45f2902a48b49b584157c8c603f40ea99445e02ae623012e1ec27cd6dc75e
+sha256: fddecaabe0e39ebdb98eac5e804b2f77a5c9f9f25afd4510b5c740cd83e2d7f9
 species: 88
 ```
 
@@ -94,7 +94,7 @@ com.pgotta.stridulate
 
 Existing saved Unknown WAVs are app-private data. Do not uninstall the app or clear its data. The local helper uses an in-place `adb install -r` update and stops if the signing identity is incompatible.
 
-## UX changes in v3
+## UX changes in v0.3
 
 ### Result screen
 
@@ -134,7 +134,7 @@ The model's exact 88-label order is bundled. Existing detailed guide entries are
 
 `No confident match` means no supported candidate crossed its active evidence gate, or a critical recording-quality blocker rejected the result.
 
-## What v3 deliberately does not claim
+## What v0.3 deliberately does not claim
 
 - It does not claim to identify every insect in a chorus.
 - It does not treat a high score as guaranteed biological certainty.
@@ -144,4 +144,4 @@ The model's exact 88-label order is bundled. Existing detailed guide entries are
 
 ## Next stage
 
-Stage K should begin from this frozen Android baseline, not by changing J.1. Stage K can train and evaluate a dedicated localization/separation model while v3 remains the stable dominant-caller application branch.
+Stage K should begin from this frozen Android baseline, not by changing J.1. Stage K can train and evaluate a dedicated localization/separation model while v0.3 remains the stable dominant-caller application branch.

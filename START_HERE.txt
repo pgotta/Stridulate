@@ -1,20 +1,28 @@
-STRIDULATE v2.3.2 — WORK IN PROGRESS / PROOF OF CONCEPT
-=========================================================
+STRIDULATE v0.3 — PRE-RELEASE / RESEARCH BUILD
+=============================================
 
-This repository contains buildable Android source, but the classifier is not yet a dependable
-field-identification product. Expect false matches and No confident match results.
+Stridulate is still a very early beta/research build. It is not a finished field-identification product.
+Expect false matches, No confident match results, and uneven performance outside the controlled Stage-J tests.
 
-BUILD
-Read BUILD.md. On Windows, open the repository in Android Studio and use Build APK(s).
-The public repository intentionally contains no .bat files.
+CURRENT DETECTOR
+v0.3 uses frozen Stage J.1 / Perch 2.0 with 88 supported acoustic classes.
+It is strongest when one supported insect is the dominant caller. Reliable simultaneous multi-insect
+separation is not implemented yet and is deferred to Stage K.
 
-LOCATION / WEATHER
-Optional context refreshes in the background every ten minutes. Pressing Record starts the
-microphone immediately and never waits for location or weather.
+BUILD / INSTALL
+Read BUILD.md. For an existing field-test phone with saved Unknown WAVs, do NOT uninstall Stridulate
+and do NOT clear app data. Use the supplied v0.3 Windows build/install package so it can perform an
+in-place adb install -r update and stage the frozen runtime files safely.
+
+MODEL RUNTIME
+The large Perch ONNX model, frozen J.1 affine head, and calibration are intentionally not committed
+inside the repository or APK. The Windows helper verifies and stages them into app-private storage.
+
+PRIVACY
+Classification runs locally. Unknown WAVs remain local unless the user explicitly shares or exports them.
 
 LICENSE
-Original source code and project documentation use the MIT License.
-The bundled epoch-19 model remains research-only because its training pool includes
-noncommercially licensed recordings. See MODEL_AND_ASSET_LICENSES.md.
+Original source code and project documentation use the MIT License. See MODEL_AND_ASSET_LICENSES.md
+for model/data-specific licensing notes.
 
-Read README.md and PROJECT_STATUS.md before publishing or distributing the app.
+Read README.md, BUILD.md, PROJECT_STATUS.md, and docs/FINAL_J_ANDROID.md before publishing or distributing the app.
