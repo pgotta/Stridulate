@@ -1,0 +1,78 @@
+name: Apply dual model v0.3 source
+
+on:
+  push:
+    branches:
+      - agent/v0.3-dual-model-fine-tuning
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: "${{ github.event.head_commit.message != 'android dual source applied' }}"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/v0.3-dual-model-fine-tuning
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Reassemble exact verified source payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat \
+            tools/dual_payload.part01 \
+            tools/dual_payload.part02 \
+            tools/dual_payload.part03 \
+            tools/dual_p03rest \
+            tools/dual_payload.part04 \
+            tools/dual_p05.00 \
+            tools/dual_p05.01 \
+            tools/dual_p05.02 \
+            tools/dual_p05.03 \
+            tools/dual_payload.part06 > /tmp/payload.b64
+          echo "c89bb6b50ce4216a668f7da7a1ed47d9b668182452adbb00a20c99f8228db1a5  /tmp/payload.b64" | sha256sum -c -
+          base64 -d /tmp/payload.b64 > /tmp/payload.tar.gz
+          echo "a7eedd4a0e29feca2b1c4d627d33b93de1da648a466fb6a8a138a6b5a4495f1f  /tmp/payload.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/payload.tar.gz
+
+      - name: Verify source contracts
+        run: |
+          python verification/verify_final_j_android.py
+          python verification/verify_qa_feedback.py
+          python verification/verify_possible_match_gate.py
+          python verification/verify_dual_model_comparison.py
+
+      - name: Commit intended source changes only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "pgotta"
+          git config user.email "168211683+pgotta@users.noreply.github.com"
+          git add \
+            .gitignore \
+            .github/workflows/android-build.yml \
+            app/build.gradle.kts \
+            app/src/main/assets/legacy_labels.txt \
+            app/src/main/java/com/pgotta/stridulate/classifier/LegacyStridulateClassifier.kt \
+            app/src/main/java/com/pgotta/stridulate/audio/ClipAnalyzer.kt \
+            app/src/main/java/com/pgotta/stridulate/audio/PossibleMatchGate.kt \
+            app/src/main/java/com/pgotta/stridulate/ui/StridulateViewModel.kt \
+            app/src/main/java/com/pgotta/stridulate/MainActivity.kt \
+            app/src/main/java/com/pgotta/stridulate/ui/screens/ListenScreen.kt \
+            app/src/main/java/com/pgotta/stridulate/ui/screens/HomeScreen.kt \
+            app/src/main/java/com/pgotta/stridulate/ui/screens/ResultScreen.kt \
+            app/src/main/java/com/pgotta/stridulate/qa/TestFeedbackRepository.kt \
+            verification/verify_final_j_android.py \
+            verification/verify_possible_match_gate.py \
+            verification/verify_dual_model_comparison.py
+          git diff --cached --check
+          git diff --cached --quiet && { echo "No intended source changes"; exit 1; }
+          git commit -m "android dual source applied"
+          git push origin HEAD:agent/v0.3-dual-model-fine-tuning
