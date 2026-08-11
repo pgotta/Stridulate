@@ -68,7 +68,11 @@ object PossibleMatchGate {
     fun minimumAbsoluteScore(level: Float = _level): Double =
         (0.30 - 0.18 * level.coerceIn(0f, 1f)).coerceIn(0.12, 0.30)
 
-    /** True when this candidate is useful enough to show as a live *possible* match. */
+    /**
+     * True when this candidate is useful enough to show in the live research UI.
+     * A frozen J.1 accepted species always remains visible; this user control only
+     * suppresses *below-threshold possible* candidates and never overrides J.1.
+     */
     fun allows(
         candidate: Candidate,
         quality: RecordingQuality,
@@ -77,6 +81,11 @@ object PossibleMatchGate {
         level: Float = _level
     ): Boolean {
         if (candidate.species == null) return false
+
+        // The display gate must never hide a species already accepted by frozen J.1.
+        // Accepted/logged-call semantics continue to come from OpenSetDecision.
+        if (candidate.evidenceAccepted == true) return true
+
         if (quality.blockingReason != null) return false
         if (quality.score < minimumQualityScore(level)) return false
         if (signature.insectLikelihood < minimumInsectLikelihood(level)) return false
