@@ -1,0 +1,56 @@
+name: Package v0.3 dual-model Android Studio project
+
+on:
+  push:
+    branches:
+      - agent/package-v0.3-dual-model-project
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/package-v0.3-dual-model-project
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Restore exact historical Epoch-19 model
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show 0b6e5e3b8703697c572d4c33357b460448828ff4:app/src/main/assets/insect_model.tflite > app/src/main/assets/legacy_insect_model.tflite
+          test "$(stat -c%s app/src/main/assets/legacy_insect_model.tflite)" = "81037632"
+          echo "395ba28333005261956edc3fd5366e8b14f57dbe3d3cb14d40ba6ea2da0afccf  app/src/main/assets/legacy_insect_model.tflite" | sha256sum -c -
+
+      - name: Add standalone J.1 support files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p app/src/main/assets/runtime
+          python - <<'PY'
+          import base64
+          from pathlib import Path
+          # Support files are intentionally supplied later by the model packaging
+          # step if absent; this workflow is only used to export the exact legacy
+          # binary artifact for the conversation package.
+          PY
+
+      - name: Upload exact legacy model
+        uses: actions/upload-artifact@v4
+        with:
+          name: stridulate-v0.3-exact-legacy-model
+          path: app/src/main/assets/legacy_insect_model.tflite
+          if-no-files-found: error
+          compression-level: 0
