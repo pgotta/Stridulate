@@ -108,9 +108,13 @@ object InsectSignalGate {
             signature.pulseRegularity.coerceIn(0.0, 1.0),
             (signature.tonality * 12.0).coerceIn(0.0, 1.0)
         )
+        // White/hiss-like noise can accidentally have a moderately stable FFT peak simply by
+        // chance, so do not require extremely poor peak stability here. A real broadband insect
+        // can still pass this branch when it has a repeating pulse envelope or a strongly stable
+        // spectral ridge; stationary unstructured broadband noise has neither.
         val randomBroadband = signature.broadband &&
             signature.tonality < (0.014 + 0.012 * x) &&
-            signature.peakStability < (0.34 + 0.18 * x) &&
+            signature.peakStability < (0.72 + 0.08 * x) &&
             signature.pulseRegularity < (0.24 + 0.18 * x) &&
             temporalContrastDb < (2.5 + 2.5 * x)
         if (randomBroadband) {
