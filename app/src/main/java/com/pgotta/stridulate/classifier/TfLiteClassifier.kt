@@ -445,7 +445,7 @@ class TfLiteClassifier(
         private const val WINDOW_HOP_SAMPLES = 80000
         private const val LABELS_ASSET = "j1_labels.txt"
         private const val CALIBRATION_RELATIVE_PATH = "models/j1_calibration.json"
-        private const val CALIBRATION_SHA256 = "d4a45f2902a48b49b584157c8c603f40ea99445e02ae623012e1ec27cd6dc75e"
+        private const val CALIBRATION_SHA256 = "fddecaabe0e39ebdb98eac5e804b2f77a5c9f9f25afd4510b5c740cd83e2d7f9"
         private const val AFFINE_RELATIVE_PATH = "models/j1_stage_d_affine.bin"
         private const val AFFINE_BYTES = 541040L
         private const val AFFINE_SHA256 = "066c6cf64b165abb83af93e4b1a38a4a3ffce2fa9ec476a5b3b9695466a6d76a"

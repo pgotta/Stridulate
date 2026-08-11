@@ -80,7 +80,7 @@ Expected calibration:
 
 ```text
 file: j1_calibration.json
-sha256: d4a45f2902a48b49b584157c8c603f40ea99445e02ae623012e1ec27cd6dc75e
+sha256: fddecaabe0e39ebdb98eac5e804b2f77a5c9f9f25afd4510b5c740cd83e2d7f9
 species: 88
 ```
 
