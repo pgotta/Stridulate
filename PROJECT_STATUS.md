@@ -1,23 +1,27 @@
 # Project status
 
-Stridulate is a **work-in-progress proof of concept**, not a finished identification product.
+Stridulate **v0.3** is a pre-release research build, not a finished identification product.
 
 ## What currently works
 
-- Offline Android inference with a 67-output TensorFlow Lite model.
-- Top-three candidates with conservative open-set rejection.
-- Reliability tiers and explicit Not Ready classes.
-- Optional region/season/weather context that never blocks recording.
-- Local saving and community-review workflow for unresolved recordings.
+- Offline Android inference using frozen Stage J.1 / Perch 2.0.
+- 88 supported acoustic classes with frozen per-species calibration and acceptance thresholds.
+- Top-three candidates and explicit `High confidence`, `Likely match`, and `No confident match` result states.
+- Sound sensitivity control for quiet callers, OFF by default, without altering the saved raw WAV.
+- Optional region/season/weather context that remains secondary to the audio model.
+- Persistent Log and Unknowns workflows.
+- Non-destructive re-analysis of saved Unknown WAVs with the current frozen J.1 detector.
+- Field-guide navigation for all 88 model labels.
 
 ## Important limitations
 
-- Species performance is uneven and many classes remain Experimental or Not Ready.
-- High model similarity is not a probability that the identification is correct.
-- Closely related callers, mixed choruses, unsupported species, speaker playback, distant audio, and phone processing can produce false matches.
-- The bundled model is research-only because its training pool includes noncommercial licenses.
-- The app is best treated as a field-testing and data-collection prototype.
+- v0.3 is still very beta and should be treated as a field-testing/research build.
+- Controlled Stage-J testing showed strong single-dominant-caller performance, but those results do not imply equivalent accuracy on arbitrary wild phone recordings.
+- Negative/background rejection is imperfect, so unsupported sounds can still produce false matches.
+- Quiet callers remain substantially harder than clear dominant callers.
+- Simultaneous multi-insect separation is not reliable; v0.3 is a dominant-caller identifier rather than a Merlin-style chorus separator.
+- High model evidence is not biological certainty. Field-guide comparison and human review remain important.
 
 ## Near-term direction
 
-The highest-value work is targeted field testing, saving real failure cases, improving common Northeastern species, expanding hard-negative insect audio, and validating each change against a fixed regression set.
+Stage J is closed around the frozen J.1 Android baseline. The next research direction is Stage K: purpose-built acoustic-object localization/separation for simultaneous callers, while preserving v0.3/J.1 as the stable downstream dominant-caller recognizer.
