@@ -45,6 +45,12 @@ result=(JAVA/'ui/screens/ResultScreen.kt').read_text()
 for token in ['High confidence','Likely match','No confident match','FROZEN J.1 · PERCH 2.0 · 88 SPECIES','localGuideId']:
     if token not in result: fail(f'result UX contract missing {token}')
 
+settings=(JAVA/'ui/screens/SettingsScreen.kt').read_text()
+for token in ['FROZEN J.1 · 88 SPECIES','count = 14','count = 3','count = 71','Verified + Good + Experimental enabled']:
+    if token not in settings: fail(f'settings UX contract missing {token}')
+if 'Disabled by default.' in settings or 'count = 17' in settings:
+    fail('settings still contains stale pre-v3 tier wording/counts')
+
 community=(JAVA/'ui/screens/CommunityScreen.kt').read_text()
 helper=(JAVA/'ui/ReanalysisSupport.kt').read_text()
 for token in ['Re-analyze with frozen J.1','reanalyzeSavedUnknown']:
