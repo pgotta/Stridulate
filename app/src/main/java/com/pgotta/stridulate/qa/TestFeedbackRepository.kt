@@ -1,7 +1,7 @@
 package com.pgotta.stridulate.qa
 
 import android.content.Context
-import com.pgotta.stridulate.BuildConfig
+import android.os.Build
 import com.pgotta.stridulate.audio.RecordingQuality
 import com.pgotta.stridulate.audio.SoundSensitivity
 import com.pgotta.stridulate.classifier.Candidate
@@ -44,6 +44,14 @@ class TestFeedbackRepository(private val context: Context) {
     val count: StateFlow<Int> = _count
     private val _targetKey = MutableStateFlow(prefs.getString(KEY_TARGET, null))
     val targetKey: StateFlow<String?> = _targetKey
+    private val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+    private val appVersionName: String = packageInfo.versionName ?: "unknown"
+    private val appVersionCode: Long = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        packageInfo.longVersionCode
+    } else {
+        @Suppress("DEPRECATION")
+        packageInfo.versionCode.toLong()
+    }
 
     fun setTargetKey(value: String?) {
         val clean = value?.takeIf(String::isNotBlank)
@@ -70,8 +78,8 @@ class TestFeedbackRepository(private val context: Context) {
             .put("schema", 1)
             .put("event_id", "qa-${System.currentTimeMillis()}-${UUID.randomUUID().toString().take(8)}")
             .put("recorded_at_ms", System.currentTimeMillis())
-            .put("app_version", BuildConfig.VERSION_NAME)
-            .put("app_version_code", BuildConfig.VERSION_CODE)
+            .put("app_version", appVersionName)
+            .put("app_version_code", appVersionCode)
             .put("model", "frozen_j1_perch_2_0")
             .put("source", snapshot.source)
             .put("verdict", verdict.name.lowercase(Locale.US))
@@ -106,7 +114,7 @@ class TestFeedbackRepository(private val context: Context) {
         val csv = buildCsv(lines)
         val readme = buildString {
             appendLine("Stridulate beta QA feedback export")
-            appendLine("App version: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+            appendLine("App version: $appVersionName ($appVersionCode)")
             appendLine("Model: frozen J.1 / Perch 2.0")
             appendLine("Feedback rows: ${lines.size}")
             appendLine()
