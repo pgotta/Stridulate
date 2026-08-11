@@ -26,6 +26,8 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - uses: gradle/actions/setup-gradle@v4
+
       - name: Restore exact historical Epoch-19 model
         shell: bash
         run: |
@@ -34,17 +36,29 @@ jobs:
           test "$(stat -c%s app/src/main/assets/legacy_insect_model.tflite)" = "81037632"
           echo "395ba28333005261956edc3fd5366e8b14f57dbe3d3cb14d40ba6ea2da0afccf  app/src/main/assets/legacy_insect_model.tflite" | sha256sum -c -
 
-      - name: Add standalone J.1 support files
+      - name: Verify source and build with legacy model physically present
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p app/src/main/assets/runtime
+          python verification/verify_final_j_android.py
+          python verification/verify_qa_feedback.py
+          python verification/verify_possible_match_gate.py
+          python verification/verify_dual_model_comparison.py
+          chmod +x ./gradlew
+          ./gradlew --no-daemon assembleDebug
+          python verification/verify_final_j_apk.py app/build/outputs/apk/debug/app-debug.apk
           python - <<'PY'
-          import base64
           from pathlib import Path
-          # Support files are intentionally supplied later by the model packaging
-          # step if absent; this workflow is only used to export the exact legacy
-          # binary artifact for the conversation package.
+          from zipfile import ZipFile
+          import hashlib
+          apk=Path('app/build/outputs/apk/debug/app-debug.apk')
+          expected='395ba28333005261956edc3fd5366e8b14f57dbe3d3cb14d40ba6ea2da0afccf'
+          with ZipFile(apk) as z:
+              name='assets/legacy_insect_model.tflite'
+              data=z.read(name)
+          assert len(data)==81037632, len(data)
+          assert hashlib.sha256(data).hexdigest()==expected
+          print('LEGACY MODEL APK VERIFY PASS')
           PY
 
       - name: Upload exact legacy model
@@ -52,5 +66,13 @@ jobs:
         with:
           name: stridulate-v0.3-exact-legacy-model
           path: app/src/main/assets/legacy_insect_model.tflite
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Upload legacy-model test APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: stridulate-v0.3-legacy-present-test-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           compression-level: 0
