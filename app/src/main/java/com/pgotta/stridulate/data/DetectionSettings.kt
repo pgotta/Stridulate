@@ -18,7 +18,7 @@ data class DetectionTierSettings(
 }
 
 /**
- * Detection-tier preferences. v3 migrates the previous default-disabled
+ * Detection-tier preferences. v0.3 migrates the previous default-disabled
  * Experimental tier to enabled once so all 88 frozen J.1 species are available
  * out of the box. A user's choices made after the migration remain persistent.
  */

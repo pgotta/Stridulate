@@ -32,8 +32,9 @@ secrets.properties
 *.apks
 captures/
 
-# Frozen J.1 runtime binaries are staged into app-private storage by the local installer.
-# Never commit or package these runtime binaries in Git/APK.
+# Frozen J.1 runtime binaries stay out of normal Git history. Standalone Android
+# Studio packages may inject exact verified copies under app/src/main/assets/runtime/.
+app/src/main/assets/runtime/
 app/src/main/assets/perch_v2_no_dft.onnx
 app/src/main/assets/j1_stage_d_affine.bin
 j1_stage_d_affine.bin
