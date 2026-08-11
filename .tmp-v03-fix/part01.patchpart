@@ -1,0 +1,195 @@
+diff --git a/.gitignore b/.gitignore
+index cc7bf7d..c25d994 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -32,8 +32,9 @@ secrets.properties
+ *.apks
+ captures/
+ 
+-# Frozen J.1 runtime binaries are staged into app-private storage by the local installer.
+-# Never commit or package these runtime binaries in Git/APK.
++# Frozen J.1 runtime binaries stay out of normal Git history. Standalone Android
++# Studio packages may inject exact verified copies under app/src/main/assets/runtime/.
++app/src/main/assets/runtime/
+ app/src/main/assets/perch_v2_no_dft.onnx
+ app/src/main/assets/j1_stage_d_affine.bin
+ j1_stage_d_affine.bin
+diff --git a/app/build.gradle.kts b/app/build.gradle.kts
+index 82a33dc..9faef26 100644
+--- a/app/build.gradle.kts
++++ b/app/build.gradle.kts
+@@ -1,3 +1,8 @@
++import java.io.File
++import java.net.HttpURLConnection
++import java.net.URI
++import java.security.MessageDigest
++
+ plugins {
+     id("com.android.application")
+     id("org.jetbrains.kotlin.android")
+@@ -5,6 +10,108 @@ plugins {
+     id("org.jetbrains.kotlin.plugin.serialization")
+ }
+ 
++val bundleJ1Runtime = providers.gradleProperty("stridulate.bundleJ1Runtime")
++    .map { it.toBoolean() }
++    .orElse(false)
++
++fun sha256(file: File): String {
++    val digest = MessageDigest.getInstance("SHA-256")
++    file.inputStream().buffered(1024 * 1024).use { input ->
++        val buffer = ByteArray(1024 * 1024)
++        while (true) {
++            val count = input.read(buffer)
++            if (count <= 0) break
++            digest.update(buffer, 0, count)
++        }
++    }
++    return digest.digest().joinToString("") { "%02x".format(it) }
++}
++
++val prepareJ1Runtime = tasks.register("prepareJ1Runtime") {
++    group = "stridulate"
++    description = "Downloads and verifies the exact frozen Perch 2.0 runtime for a self-contained v0.3 APK."
++    onlyIf { bundleJ1Runtime.get() }
++    doLast {
++        val runtimeDir = layout.projectDirectory.dir("src/main/assets/runtime").asFile
++        runtimeDir.mkdirs()
++
++        data class RuntimeFile(val name: String, val bytes: Long, val sha: String)
++        val support = listOf(
++            RuntimeFile("j1_stage_d_affine.bin", 541040L, "066c6cf64b165abb83af93e4b1a38a4a3ffce2fa9ec476a5b3b9695466a6d76a"),
++            RuntimeFile("j1_calibration.json", 34189L, "fddecaabe0e39ebdb98eac5e804b2f77a5c9f9f25afd4510b5c740cd83e2d7f9")
++        )
++        support.forEach { item ->
++            val file = File(runtimeDir, item.name)
++            require(file.isFile) { "Missing ${item.name}. Re-extract the complete Stridulate v0.3 Android Studio package." }
++            require(file.length() == item.bytes) { "${item.name} size mismatch; refusing to build." }
++            require(sha256(file).equals(item.sha, ignoreCase = true)) { "${item.name} SHA-256 mismatch; refusing to build." }
++        }
++
++        val perch = RuntimeFile(
++            "perch_v2_no_dft.onnx",
++            413350933L,
++            "4dcf71c18a147198545944bb5149697e89e3ad2e16637fa8f0edf6d13035a017"
++        )
++        val model = File(runtimeDir, perch.name)
++        fun validPerch(): Boolean = model.isFile && model.length() == perch.bytes &&
++            sha256(model).equals(perch.sha, ignoreCase = true)
++
++        if (!validPerch()) {
++            if (model.exists()) model.delete()
++            val part = File(runtimeDir, perch.name + ".download")
++            part.delete()
++            val url = URI(
++                "https://huggingface.co/tphakala/Perch-v2/resolve/main/perch_v2_no_dft.onnx?download=true"
++            ).toURL()
++            println("Stridulate v0.3: downloading exact frozen Perch 2.0 model (~413 MB). This happens once.")
++            val connection = (url.openConnection() as HttpURLConnection).apply {
++                instanceFollowRedirects = true
++                connectTimeout = 30_000
++                readTimeout = 120_000
++                setRequestProperty("User-Agent", "Stridulate-Android-v0.3-Gradle")
++            }
++            try {
++                connection.inputStream.use { input ->
++                    part.outputStream().buffered(1024 * 1024).use { output ->
++                        val buffer = ByteArray(1024 * 1024)
++                        var copied = 0L
++                        var nextReport = 50L * 1024 * 1024
++                        while (true) {
++                            val count = input.read(buffer)
++                            if (count <= 0) break
++                            output.write(buffer, 0, count)
++                            copied += count
++                            if (copied >= nextReport) {
++                                println("  downloaded ${copied / (1024 * 1024)} MB...")
++                                nextReport += 50L * 1024 * 1024
++                            }
++                        }
++                    }
++                }
++            } finally {
++                connection.disconnect()
++            }
++            require(part.length() == perch.bytes) {
++                "Perch download size ${part.length()} != ${perch.bytes}; delete the .download file and retry."
++            }
++            require(sha256(part).equals(perch.sha, ignoreCase = true)) {
++                part.delete()
++                "Perch download SHA-256 mismatch; refusing to package an unverified model."
++            }
++            if (!part.renameTo(model)) {
++                part.copyTo(model, overwrite = true)
++                part.delete()
++            }
++        }
++        require(validPerch()) { "Frozen Perch 2.0 verification failed after preparation." }
++        println("Stridulate v0.3: frozen J.1 / Perch runtime verified and ready for APK packaging.")
++    }
++}
++
++tasks.matching { it.name == "preBuild" }.configureEach {
++    dependsOn(prepareJ1Runtime)
++}
++
+ android {
+     namespace = "com.pgotta.stridulate"
+     compileSdk = 34
+@@ -37,6 +144,9 @@ android {
+     packaging {
+         resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" }
+     }
++    // Standalone Android Studio packages may bundle the 413 MB Perch model.
++    // Keep ONNX uncompressed so AssetManager can stream it efficiently on first launch.
++    androidResources { noCompress += "onnx" }
+ }
+ 
+ dependencies {
+diff --git a/app/src/main/java/com/pgotta/stridulate/classifier/TfLiteClassifier.kt b/app/src/main/java/com/pgotta/stridulate/classifier/TfLiteClassifier.kt
+index 2d1467b..4d9c8f4 100644
+--- a/app/src/main/java/com/pgotta/stridulate/classifier/TfLiteClassifier.kt
++++ b/app/src/main/java/com/pgotta/stridulate/classifier/TfLiteClassifier.kt
+@@ -27,20 +27,16 @@ import kotlin.math.sin
+ 
+ /**
+  * Compatibility entry point retained so the existing ViewModel does not need a
+- * migration. Despite the historical class name, v3 runs the frozen Stage J.1
++ * migration. Despite the historical class name, v0.3 runs the frozen Stage J.1
+  * Perch 2.0 + Stage-D affine/calibration path through ONNX Runtime.
+  *
+- * Runtime files are intentionally not committed or packed into the APK. The v3
+- * build/install helper verifies and stages Perch, the affine head and calibration
+- * into files/models without clearing app data.
++ * Normal repository builds may stage the three frozen runtime files externally.
++ * Standalone Android Studio packages may bundle the exact same verified files under
++ * assets/runtime; when present they are copied once into files/models on first launch.
+  */
+ class TfLiteClassifier(
+     context: Context,
+     species: List<Species>,
+-    @Suppress("UNUSED_PARAMETER") modelAsset: String = "insect_model.tflite",
+-    @Suppress("UNUSED_PARAMETER") labelsAsset: String = "labels.txt",
+-    @Suppress("UNUSED_PARAMETER") metadataAsset: String = "model_meta.json",
+-    @Suppress("UNUSED_PARAMETER") normalizationAsset: String = "normalization.json",
+     reliabilityAsset: String = "android_reliability.json"
+ ) : InsectClassifier {
+ 
+@@ -49,16 +45,29 @@ class TfLiteClassifier(
+     private val labels = app.assets.open(LABELS_ASSET).bufferedReader().useLines { lines ->
+         lines.map(String::trim).filter(String::isNotBlank).toList()
+     }
+-    private val calibration = J1Calibration.load(File(app.filesDir, CALIBRATION_RELATIVE_PATH), labels)
+-    private val affine = J1Affine.load(File(app.filesDir, AFFINE_RELATIVE_PATH), labels.size)
++    private val calibrationFile = ensureRuntimeFile(
++        CALIBRATION_RELATIVE_PATH, CALIBRATION_BUNDLED_ASSET, CALIBRATION_BYTES, CALIBRATION_SHA256
++    )
++    private val affineFile = ensureRuntimeFile(
++        AFFINE_RELATIVE_PATH, AFFINE_BUNDLED_ASSET, AFFINE_BYTES, AFFINE_SHA256
++    )
++    private val modelSourceAvailable = runtimeSourceAvailable(
++        MODEL_RELATIVE_PATH, MODEL_BUNDLED_ASSET, PERCH_BYTES
++    )
++    private val calibration = J1Calibration.load(calibrationFile, labels)
++    private val affine = J1Affine.load(affineFile, labels.size)
+     private val reliabilityRepository = SpeciesReliabilityRepository(app, reliabilityAsset)
