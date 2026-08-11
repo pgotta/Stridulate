@@ -38,9 +38,9 @@ fun SettingsScreen(
     onTierChanged: (ReliabilityTier, Boolean) -> Unit
 ) {
     Column(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
-        AppBarRow("Settings", "DETECTION RELIABILITY", onBack = onBack)
+        AppBarRow("Settings", "FROZEN J.1 · 88 SPECIES", onBack = onBack)
         Text(
-            "Only tiers enabled here can appear in rolling identification or be saved as detections. The full model still runs so hidden classes cannot inflate another species' confidence.",
+            "All 88 frozen J.1 acoustic classes are available by default. These switches only control which accepted classes can appear in rolling identification; disabling a tier does not change the model scores.",
             fontFamily = Inter,
             fontSize = 13.sp,
             color = ParchDim,
@@ -51,7 +51,7 @@ fun SettingsScreen(
             tier = ReliabilityTier.VERIFIED,
             count = 14,
             enabled = settings.verified,
-            description = "Strongest independent support in this model release.",
+            description = "Strongest species-specific independent support in the prior Android reliability audit.",
             onChanged = { onTierChanged(ReliabilityTier.VERIFIED, it) }
         )
         Spacer(Modifier.height(9.dp))
@@ -59,31 +59,22 @@ fun SettingsScreen(
             tier = ReliabilityTier.GOOD,
             count = 3,
             enabled = settings.good,
-            description = "Useful support, but still requires field-guide confirmation.",
+            description = "Useful species-specific support; still confirm with the field guide and call pattern.",
             onChanged = { onTierChanged(ReliabilityTier.GOOD, it) }
         )
         Spacer(Modifier.height(9.dp))
         TierSettingRow(
             tier = ReliabilityTier.EXPERIMENTAL,
-            count = 32,
+            count = 71,
             enabled = settings.experimental,
-            description = "Limited or uneven validation. Disabled by default.",
+            description = "Includes prior Experimental/Not Ready classes plus newly added J.1 classes. J.1 still requires its frozen per-species evidence threshold before showing a detection.",
             onChanged = { onTierChanged(ReliabilityTier.EXPERIMENTAL, it) }
-        )
-        Spacer(Modifier.height(9.dp))
-        TierSettingRow(
-            tier = ReliabilityTier.NOT_READY,
-            count = 17,
-            enabled = false,
-            description = "Never returned as a primary detection.",
-            onChanged = {},
-            locked = true
         )
         Spacer(Modifier.height(18.dp))
         Text("Recommended default", fontFamily = Fraunces, fontSize = 17.sp, color = Parch)
         Spacer(Modifier.height(5.dp))
         Text(
-            "Verified + Good. Experimental remains available in the field guide even when detection is disabled.",
+            "Verified + Good + Experimental enabled. This exposes the full 88-species J.1 catalog while the frozen J.1 evidence thresholds remain the actual acceptance gate.",
             fontFamily = JetBrainsMono,
             fontSize = 10.5.sp,
             color = Mute,
@@ -98,8 +89,7 @@ private fun TierSettingRow(
     count: Int,
     enabled: Boolean,
     description: String,
-    onChanged: (Boolean) -> Unit,
-    locked: Boolean = false
+    onChanged: (Boolean) -> Unit
 ) {
     Row(
         Modifier.fillMaxWidth().background(Panel, RoundedCornerShape(13.dp))
@@ -113,7 +103,6 @@ private fun TierSettingRow(
         Switch(
             checked = enabled,
             onCheckedChange = onChanged,
-            enabled = !locked,
             colors = SwitchDefaults.colors(checkedThumbColor = Biolume, checkedTrackColor = Biolume.copy(alpha = 0.35f))
         )
     }
