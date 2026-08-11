@@ -89,8 +89,8 @@ index 7e4cebd..abe55a6 100644
  from pathlib import Path
  
  EXPECTED = {
--    'assets/j1_labels.txt': '0797656d8c227198545944bb5149697e89e3ad2e16637fa8f0edf6d13035a017',
--    'assets/labels.txt': '0797656d8c227198545944bb5149697e89e3ad2e16637fa8f0edf6d13035a017',
+-    'assets/j1_labels.txt': '0797656d8c2271f04224e109584c6f14a43405a8d30da6f54344c5912a78053c',
+-    'assets/labels.txt': '0797656d8c2271f04224e109584c6f14a43405a8d30da6f54344c5912a78053c',
 +    'assets/j1_labels.txt': (None, '0797656d8c2271f04224e109584c6f14a43405a8d30da6f54344c5912a78053c'),
 +    'assets/labels.txt': (None, '0797656d8c2271f04224e109584c6f14a43405a8d30da6f54344c5912a78053c'),
 +}
