@@ -15,6 +15,7 @@ checks = {
     "front gate is before analysis gain": "InsectSignalGate.assess" in clip and "rawSamples = samples" in clip,
     "front gate rejects raw noise floor": "microphone noise floor" in signal,
     "front gate rejects broadband noise": "broadband and unstructured" in signal,
+    "front gate rejects stationary hiss conservatively": "0.72 + 0.08 * x" in signal,
     "front gate rejects low frequency noise": "low-frequency broadband/noise" in signal,
     "display gate still requires recurrence": "requiredConsecutiveWindows" in gate and "consecutiveWindows" in gate,
     "live candidates require front gate": "if (!result.signalAssessment.passed)" in vm,
