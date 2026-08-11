@@ -27,6 +27,8 @@ data class TestFeedbackSnapshot(
     val windowStartSeconds: Double? = null,
     val windowEndSeconds: Double? = null,
     val candidates: List<Candidate>,
+    /** Exact pre-v0.3 Epoch-19 shadow ranking from the same gained PCM, when bundled. */
+    val legacyCandidates: List<Candidate> = emptyList(),
     val quality: RecordingQuality? = null,
     val signature: MeasuredSignature? = null,
     val signalAssessment: InsectSignalAssessment? = null,
@@ -69,6 +71,7 @@ class TestFeedbackRepository(private val context: Context) {
     @Synchronized
     fun record(verdict: FeedbackVerdict, selectedLabel: String?, snapshot: TestFeedbackSnapshot): String {
         val visible = snapshot.candidates.filter { it.species != null }.take(3)
+        val legacyVisible = snapshot.legacyCandidates.take(3)
         val selected = visible.firstOrNull { it.label == selectedLabel }
         val target = when {
             _targetKey.value == TARGET_NOISE -> JSONObject().put("type", "noise").put("label", "noise_or_non_insect")
@@ -80,18 +83,20 @@ class TestFeedbackRepository(private val context: Context) {
             else -> JSONObject().put("type", "unspecified")
         }
         val event = JSONObject()
-            .put("schema", 2)
+            .put("schema", 3)
             .put("event_id", "qa-${System.currentTimeMillis()}-${UUID.randomUUID().toString().take(8)}")
             .put("recorded_at_ms", System.currentTimeMillis())
             .put("app_version", appVersionName)
             .put("app_version_code", appVersionCode)
             .put("model", "frozen_j1_perch_2_0")
+            .put("comparison_model", if (legacyVisible.isEmpty()) JSONObject.NULL else "legacy_epoch19_67_tflite")
             .put("j1_score_meaning", "model score 0..1; not a literal probability of correctness")
             .put("source", snapshot.source)
             .put("verdict", verdict.name.lowercase(Locale.US))
             .put("expected_target", target)
             .put("selected_candidate", selected?.let(::candidateJson) ?: JSONObject.NULL)
             .put("top3", JSONArray().apply { visible.forEachIndexed { index, c -> put(candidateJson(c).put("rank", index + 1)) } })
+            .put("legacy_top3", JSONArray().apply { legacyVisible.forEachIndexed { index, c -> put(legacyCandidateJson(c).put("rank", index + 1)) } })
             .putNullable("session_key", snapshot.sessionKey)
             .putNullable("window_start_seconds", snapshot.windowStartSeconds)
             .putNullable("window_end_seconds", snapshot.windowEndSeconds)
@@ -125,14 +130,16 @@ class TestFeedbackRepository(private val context: Context) {
         val readme = buildString {
             appendLine("Stridulate beta QA feedback export")
             appendLine("App version: $appVersionName ($appVersionCode)")
-            appendLine("Model: frozen J.1 / Perch 2.0")
+            appendLine("Primary model: frozen J.1 / Perch 2.0")
+            appendLine("Comparison model: old Stridulate Epoch-19 / 67-class TFLite when bundled")
             appendLine("Feedback rows: ${lines.size}")
             appendLine()
             appendLine("feedback.jsonl is the lossless machine-readable log.")
             appendLine("feedback.csv is a flattened view for spreadsheets.")
             appendLine("Exact GPS coordinates are not exported by this QA logger.")
             appendLine("J.1 values are model scores, not literal probabilities of correctness.")
-            appendLine("The log includes raw Top 3 J.1 scores plus the class-agnostic raw-audio signal gate, possible-match gate, and acoustic diagnostics so silence/noise false positives can be analyzed later.")
+            appendLine("The log includes raw Top 3 J.1 scores and, when available, the old Stridulate Top 3 from the SAME sensitivity-adjusted PCM.")
+            appendLine("It also includes the class-agnostic raw-audio signal gate, possible-match gate, and acoustic diagnostics so silence/noise false positives can be analyzed later.")
             appendLine("CORRECT/INCORRECT refer to the selected candidate; expected_target records the test target when one was set.")
         }
         ZipOutputStream(zip.outputStream().buffered()).use { out ->
@@ -159,6 +166,16 @@ class TestFeedbackRepository(private val context: Context) {
         .putNullable("gate_passed", candidate.evidenceAccepted)
         .putNullable("call_profile_passed", candidate.callCompatibilityPassed)
         .putNullable("call_profile_summary", candidate.callCompatibilitySummary)
+        .put("tier", candidate.reliability.tier.name)
+
+    private fun legacyCandidateJson(candidate: Candidate): JSONObject = JSONObject()
+        .put("label", candidate.label)
+        .putNullable("common", candidate.species?.common)
+        .putNullable("scientific", candidate.species?.latin)
+        .put("score", candidate.audioConfidence)
+        .put("score_kind", "legacy_temperature_scaled_softmax")
+        .putNullable("base_gate_passed", candidate.evidenceAccepted)
+        .putNullable("threshold", candidate.acceptanceThreshold)
         .put("tier", candidate.reliability.tier.name)
 
     private fun qualityJson(quality: RecordingQuality?): Any = quality?.let {
@@ -218,6 +235,9 @@ class TestFeedbackRepository(private val context: Context) {
             "top1_label", "top1_score_pct", "top1_threshold_pct", "top1_gate_passed",
             "top2_label", "top2_score_pct", "top2_threshold_pct", "top2_gate_passed",
             "top3_label", "top3_score_pct", "top3_threshold_pct", "top3_gate_passed",
+            "old1_label", "old1_score_pct", "old1_base_gate_passed",
+            "old2_label", "old2_score_pct", "old2_base_gate_passed",
+            "old3_label", "old3_score_pct", "old3_base_gate_passed",
             "window_start_seconds", "window_end_seconds", "analysis_gain", "possible_match_gate_level", "possible_match_gate_profile",
             "quality_grade", "quality_score", "insect_likelihood", "peak_freq_khz", "tonality", "low_freq_ratio", "peak_stability",
             "signal_gate_passed", "signal_gate_score", "signal_gate_reason", "raw_rms", "temporal_contrast_db",
@@ -227,7 +247,9 @@ class TestFeedbackRepository(private val context: Context) {
             val target = event.optJSONObject("expected_target")?.optString("label").orEmpty()
             val selected = event.optJSONObject("selected_candidate")
             val top = event.optJSONArray("top3") ?: JSONArray()
+            val legacy = event.optJSONArray("legacy_top3") ?: JSONArray()
             fun candidate(index: Int): JSONObject? = top.optJSONObject(index)
+            fun legacyCandidate(index: Int): JSONObject? = legacy.optJSONObject(index)
             fun pct(value: Double): String = if (value.isFinite()) String.format(Locale.US, "%.1f", value * 100.0) else ""
             fun threshold(c: JSONObject?): String = c?.takeIf { it.has("threshold") && !it.isNull("threshold") }?.optDouble("threshold")?.let(::pct).orEmpty()
             fun passed(c: JSONObject?): String = c?.takeIf { it.has("gate_passed") && !it.isNull("gate_passed") }?.optBoolean("gate_passed")?.toString().orEmpty()
@@ -246,6 +268,13 @@ class TestFeedbackRepository(private val context: Context) {
                 values += c?.optDouble("score")?.let(::pct).orEmpty()
                 values += threshold(c)
                 values += passed(c)
+            }
+            for (i in 0..2) {
+                val c = legacyCandidate(i)
+                values += c?.optString("label").orEmpty()
+                values += c?.optDouble("score")?.let(::pct).orEmpty()
+                values += c?.takeIf { it.has("base_gate_passed") && !it.isNull("base_gate_passed") }
+                    ?.optBoolean("base_gate_passed")?.toString().orEmpty()
             }
             values += event.optNullableString("window_start_seconds")
             values += event.optNullableString("window_end_seconds")

@@ -19,6 +19,7 @@ import com.pgotta.stridulate.audio.SoundSensitivity
 import com.pgotta.stridulate.classifier.Candidate
 import com.pgotta.stridulate.classifier.ClassificationPolicy
 import com.pgotta.stridulate.classifier.InsectClassifier
+import com.pgotta.stridulate.classifier.LegacyStridulateClassifier
 import com.pgotta.stridulate.classifier.OpenSetDecision
 import com.pgotta.stridulate.classifier.OpenSetDecisionType
 import com.pgotta.stridulate.classifier.TfLiteClassifier
@@ -81,6 +82,8 @@ data class IdResult(
     val signature: MeasuredSignature,
     /** Top three supported species; Unknown/Unsupported remains in modelTopLabel for gate reporting. */
     val candidates: List<Candidate>,
+    /** Diagnostic old-Stridulate ranking from the same audio. Never drives production logging. */
+    val legacyCandidates: List<Candidate> = emptyList(),
     val spectrogram: List<FloatArray>,
     val decision: IdentificationDecision = IdentificationDecision.NO_CONFIDENT_MATCH,
     val decisionReason: String = "",
@@ -244,9 +247,16 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
     val usingTrainedModel: Boolean get() = classifierSetup.usingTrainedModel
     val modelStatus: String get() = classifierSetup.status
 
+    // The pre-v0.3 model is intentionally a shadow comparator only. It is present
+    // in the standalone beta package, but omitted from normal repository CI builds.
+    private val legacyClassifier: InsectClassifier? = if (LegacyStridulateClassifier.isAvailable(app)) {
+        runCatching { LegacyStridulateClassifier(app, repo.species) }.getOrNull()
+    } else null
+    val legacyComparisonAvailable: Boolean get() = legacyClassifier != null
+
     private val fftSize = 4096
     private val mic = MicRecorder(fftSize)
-    private val clipAnalyzer = ClipAnalyzer(classifier, fftSize)
+    private val clipAnalyzer = ClipAnalyzer(classifier, fftSize, legacyClassifier)
 
     private val _ui = MutableStateFlow<UiState>(UiState.Idle)
     val ui: StateFlow<UiState> = _ui
@@ -263,6 +273,8 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
     // score-ranked candidates remain visible even when none crosses its J.1 threshold.
     private val _liveCandidates = MutableStateFlow<List<Candidate>>(emptyList())
     val liveCandidates: StateFlow<List<Candidate>> = _liveCandidates
+    private val _liveLegacyCandidates = MutableStateFlow<List<Candidate>>(emptyList())
+    val liveLegacyCandidates: StateFlow<List<Candidate>> = _liveLegacyCandidates
     private val _liveSignalAssessment = MutableStateFlow<InsectSignalAssessment?>(null)
     val liveSignalAssessment: StateFlow<InsectSignalAssessment?> = _liveSignalAssessment
     private var lastLiveFeedbackSnapshot: TestFeedbackSnapshot? = null
@@ -270,6 +282,7 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
     private var previousRawLiveLabels: Set<String> = emptySet()
     private var lastLiveAnalysisResult: ClipAnalyzer.Result? = null
     private var lastLiveRawTopThree: List<Candidate> = emptyList()
+    private var lastLiveRawLegacyTopThree: List<Candidate> = emptyList()
     private var lastLiveRawPcm: FloatArray = FloatArray(0)
     private var lastLiveRawSampleRate: Int = 0
     private var liveGateRefreshJob: Job? = null
@@ -379,6 +392,7 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
             source = "result",
             sessionKey = result.communityRecordId ?: result.evidenceAudio?.filePath,
             candidates = result.candidates.take(3),
+            legacyCandidates = result.legacyCandidates.take(3),
             quality = result.recordingQuality,
             signature = result.signature,
             signalAssessment = result.signalAssessment,
@@ -393,6 +407,7 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
             source = "result",
             sessionKey = result.communityRecordId ?: result.evidenceAudio?.filePath,
             candidates = result.candidates.take(3),
+            legacyCandidates = result.legacyCandidates.take(3),
             quality = result.recordingQuality,
             signature = result.signature,
             signalAssessment = result.signalAssessment,
@@ -426,6 +441,7 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
             if (lastLiveRawPcm !== rawPcm || lastLiveAnalysisResult !== result) return@launch
             _liveSignalAssessment.value = assessment
             _liveCandidates.value = filterLiveCandidates(rawTopThree, result, assessment)
+            _liveLegacyCandidates.value = if (assessment.passed) lastLiveRawLegacyTopThree else emptyList()
         }
     }
 
@@ -460,12 +476,14 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
     private fun beginListening() {
         _ui.value = UiState.Listening
         _liveCandidates.value = emptyList()
+        _liveLegacyCandidates.value = emptyList()
         _liveSignalAssessment.value = null
         lastLiveFeedbackSnapshot = null
         liveCandidateStreaks.clear()
         previousRawLiveLabels = emptySet()
         lastLiveAnalysisResult = null
         lastLiveRawTopThree = emptyList()
+        lastLiveRawLegacyTopThree = emptyList()
         lastLiveRawPcm = FloatArray(0)
         lastLiveRawSampleRate = 0
         liveGateRefreshJob?.cancel()
@@ -517,6 +535,10 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
             .take(3)
             .toList()
         lastLiveRawTopThree = rawTopThree
+        val rawLegacyTopThree = result.legacyCandidates
+            .sortedByDescending { it.audioConfidence }
+            .take(3)
+        lastLiveRawLegacyTopThree = rawLegacyTopThree
         val rawLabels = rawTopThree.map { it.label }.toSet()
         rawTopThree.forEach { candidate ->
             liveCandidateStreaks[candidate.label] =
@@ -530,6 +552,7 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
         previousRawLiveLabels = rawLabels
 
         _liveCandidates.value = filterLiveCandidates(rawTopThree, result, result.signalAssessment)
+        _liveLegacyCandidates.value = if (result.signalAssessment.passed) rawLegacyTopThree else emptyList()
 
         val feedbackNow = _recordingElapsedSeconds.value
         lastLiveFeedbackSnapshot = TestFeedbackSnapshot(
@@ -538,6 +561,7 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
             windowStartSeconds = (feedbackNow - LIVE_WINDOW_SECONDS).coerceAtLeast(0.0),
             windowEndSeconds = feedbackNow,
             candidates = rawTopThree,
+            legacyCandidates = rawLegacyTopThree,
             quality = result.rawQuality,
             signature = result.rawSignature,
             signalAssessment = result.signalAssessment,
@@ -623,12 +647,14 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
             }
             _recordingElapsedSeconds.value = 0.0
             _liveCandidates.value = emptyList()
+            _liveLegacyCandidates.value = emptyList()
             _liveSignalAssessment.value = null
             lastLiveFeedbackSnapshot = null
             liveCandidateStreaks.clear()
             previousRawLiveLabels = emptySet()
             lastLiveAnalysisResult = null
             lastLiveRawTopThree = emptyList()
+            lastLiveRawLegacyTopThree = emptyList()
             lastLiveRawPcm = FloatArray(0)
             lastLiveRawSampleRate = 0
             liveGateRefreshJob?.cancel()
@@ -646,12 +672,14 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
         _liveDetections.value = emptyList()
         _recordingElapsedSeconds.value = 0.0
         _liveCandidates.value = emptyList()
+        _liveLegacyCandidates.value = emptyList()
         _liveSignalAssessment.value = null
         lastLiveFeedbackSnapshot = null
         liveCandidateStreaks.clear()
         previousRawLiveLabels = emptySet()
         lastLiveAnalysisResult = null
         lastLiveRawTopThree = emptyList()
+        lastLiveRawLegacyTopThree = emptyList()
         lastLiveRawPcm = FloatArray(0)
         lastLiveRawSampleRate = 0
         liveGateRefreshJob?.cancel()
@@ -717,6 +745,7 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
                     IdResult(
                         signature = res.signature,
                         candidates = res.candidates,
+                        legacyCandidates = res.legacyCandidates,
                         spectrogram = res.spectrogram,
                         recordingQuality = res.quality,
                         signalAssessment = res.signalAssessment,

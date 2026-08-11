@@ -61,7 +61,7 @@ for token in ['liveCandidates: StateFlow<List<Candidate>>','sortedByDescending {
     if token not in viewmodel: fail(f'live discovery contract missing {token}')
 
 listen=(JAVA/'ui/screens/ListenScreen.kt').read_text()
-for token in ['LIVE POSSIBLE MATCHES','PASSES J.1 GATE','POSSIBLE · BELOW J.1 GATE','Insect / noise gate']:
+for token in ['LIVE MODEL COMPARISON','NEW · J.1/PERCH 88','GATE','FineVerticalControl','● HEARD NOW']:
     if token not in listen: fail(f'live possible-match UX missing {token}')
 for stale in ['guesses below their J.1 evidence threshold are not shown or logged','Low-evidence output stays hidden','Top 3 J.1 evidence scores are always shown']:
     if stale in listen: fail(f'live UI still hides below-gate possibilities: {stale}')

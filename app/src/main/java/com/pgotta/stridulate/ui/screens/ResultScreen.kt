@@ -285,6 +285,19 @@ fun ResultScreen(
                     CandidateFeedbackButtons { verdict -> onTestFeedback(candidate.label, verdict) }
                     Spacer(Modifier.height(8.dp))
                 }
+                if (result.legacyCandidates.isNotEmpty()) {
+                    Spacer(Modifier.height(10.dp))
+                    Text("OLD STRIDULATE SHADOW · 67", color = ParchDim, fontFamily = JetBrainsMono, fontSize = 10.sp, letterSpacing = 1.2.sp)
+                    Text(
+                        "Diagnostic comparison only. It receives the same sensitivity-adjusted PCM; it never drives v0.3 logging or accepted detections.",
+                        fontFamily = Inter, fontSize = 10.sp, color = Mute, lineHeight = 14.sp
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    result.legacyCandidates.take(3).forEachIndexed { index, candidate ->
+                        LegacyMatchRow(index + 1, candidate)
+                        Spacer(Modifier.height(4.dp))
+                    }
+                }
             }
 
             Spacer(Modifier.height(10.dp))
@@ -610,6 +623,21 @@ private fun SpeciesMatchRow(rank: Int, candidate: Candidate, onClick: () -> Unit
             Spacer(Modifier.height(5.dp))
             Text(summary, fontFamily = Inter, fontSize = 10.5.sp, color = Mute, lineHeight = 15.sp)
         }
+    }
+}
+
+@Composable
+private fun LegacyMatchRow(rank: Int, candidate: Candidate) {
+    val name = candidate.species?.common ?: "Unknown / unsupported"
+    val score = (candidate.audioConfidence * 100).roundToInt().coerceIn(0, 100)
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp)).background(Panel)
+            .border(BorderStroke(1.dp, Line), RoundedCornerShape(9.dp)).padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("$rank", modifier = Modifier.width(20.dp), fontFamily = JetBrainsMono, fontSize = 9.sp, color = Mute)
+        Text(name, modifier = Modifier.weight(1f), fontFamily = Inter, fontSize = 11.5.sp, color = ParchDim)
+        Text("$score%", fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Parch)
     }
 }
 

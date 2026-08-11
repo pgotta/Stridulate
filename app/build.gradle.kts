@@ -146,7 +146,10 @@ android {
     }
     // Standalone Android Studio packages may bundle the 413 MB Perch model.
     // Keep ONNX uncompressed so AssetManager can stream it efficiently on first launch.
-    androidResources { noCompress += "onnx" }
+    androidResources {
+        noCompress += "onnx"
+        noCompress += "tflite"
+    }
 }
 
 dependencies {
@@ -168,6 +171,8 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.1")
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.26.0")
+    // Diagnostic shadow model only: exact pre-v0.3 Epoch-19 Stridulate comparison.
+    implementation("org.tensorflow:tensorflow-lite:2.16.1")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

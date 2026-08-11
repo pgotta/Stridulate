@@ -45,14 +45,19 @@ object PossibleMatchGate {
     }
 
     fun profile(level: Float = _level): String = when {
-        level < 0.25f -> "STRICT"
-        level < 0.65f -> "BALANCED"
-        else -> "SENSITIVE"
+        level < 0.15f -> "VERY STRICT"
+        level < 0.35f -> "STRICT"
+        level < 0.60f -> "BALANCED"
+        level < 0.82f -> "SENSITIVE"
+        else -> "MAX SENSITIVE"
     }
 
+    // Recurrence is only a coarse safety floor at the strict end. Across most of
+    // the rail, the continuous acoustic/evidence thresholds below provide fine
+    // 0..100 adjustment instead of a three-position feel.
     fun requiredConsecutiveWindows(level: Float = _level): Int = when {
-        level < 0.25f -> 3
-        level < 0.75f -> 2
+        level < 0.10f -> 3
+        level < 0.30f -> 2
         else -> 1
     }
 

@@ -57,3 +57,7 @@ __pycache__/
 
 # Keep every Windows batch script out of the public repository
 *.bat
+
+# Old Epoch-19 model is bundled only in standalone beta comparison packages.
+app/src/main/assets/legacy_insect_model.tflite
+legacy_insect_model.tflite

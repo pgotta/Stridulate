@@ -25,6 +25,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +33,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pgotta.stridulate.environment.ContextStatus
@@ -225,6 +227,7 @@ private fun ObservationContextCard(
     onRefresh: () -> Unit,
     onDisable: () -> Unit
 ) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
     var ageTick by remember(context.refreshedAtMillis, context.enabled) { mutableStateOf(0L) }
     LaunchedEffect(context.refreshedAtMillis, context.enabled) {
         while (context.enabled) {
@@ -233,6 +236,42 @@ private fun ObservationContextCard(
         }
     }
     val currentAgeLabel = remember(context.refreshedAtMillis, ageTick) { context.weatherAgeLabel }
+
+    // Once a location has been configured, Home defaults to one compact line. The
+    // full weather/context controls are still one tap away.
+    if (context.enabled && !expanded) {
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp)).background(Panel)
+                .border(BorderStroke(1.dp, Line), RoundedCornerShape(11.dp))
+                .clickable { expanded = true }
+                .padding(horizontal = 11.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Filled.LocationOn, null, tint = Amber, modifier = Modifier.size(17.dp))
+            Spacer(Modifier.width(7.dp))
+            Text(
+                buildString {
+                    append(context.locationLabel ?: context.region.displayName)
+                    context.temperatureF?.let { append(" · ${context.temperatureLabel}") }
+                    context.humidityLabel?.let { append(" · $it") }
+                    append(" · ${context.seasonLabel} · ${context.dayPeriodLabel}")
+                },
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                fontFamily = Inter,
+                fontSize = 11.5.sp,
+                color = ParchDim
+            )
+            if (context.status == ContextStatus.REFRESHING) {
+                Spacer(Modifier.width(7.dp))
+                CircularProgressIndicator(color = Biolume, strokeWidth = 1.5.dp, modifier = Modifier.size(13.dp))
+            }
+            Spacer(Modifier.width(7.dp))
+            Text("▼", fontFamily = JetBrainsMono, fontSize = 8.sp, color = Mute)
+        }
+        return
+    }
 
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(Panel)
@@ -243,13 +282,18 @@ private fun ObservationContextCard(
             Spacer(Modifier.width(8.dp))
             Text("Observation context", fontFamily = Fraunces, fontSize = 17.sp, color = Parch)
             Spacer(Modifier.weight(1f))
-            Text(
-                if (context.enabled) "ON" else "OPTIONAL",
-                fontFamily = JetBrainsMono,
-                fontSize = 9.sp,
-                color = if (context.enabled) Biolume else Mute,
-                letterSpacing = 1.sp
-            )
+            if (context.enabled) {
+                Text(
+                    "ON · ▲",
+                    modifier = Modifier.clickable { expanded = false }.padding(horizontal = 4.dp, vertical = 3.dp),
+                    fontFamily = JetBrainsMono,
+                    fontSize = 9.sp,
+                    color = Biolume,
+                    letterSpacing = 1.sp
+                )
+            } else {
+                Text("OPTIONAL", fontFamily = JetBrainsMono, fontSize = 9.sp, color = Mute, letterSpacing = 1.sp)
+            }
         }
         Spacer(Modifier.height(8.dp))
 
