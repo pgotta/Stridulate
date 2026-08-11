@@ -48,6 +48,41 @@ jobs:
       - name: Verify frozen J.1 APK assets
         run: python verification/verify_final_j_apk.py app/build/outputs/apk/debug/app-debug.apk
 
+      - name: Prepare standalone Android Studio project
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon wrapper
+          test -f gradlew.bat
+          mkdir -p "$RUNNER_TEMP/Stridulate-Android-v0.3-Android-Studio"
+          rsync -a ./ "$RUNNER_TEMP/Stridulate-Android-v0.3-Android-Studio/" \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='.gradle/' \
+            --exclude='.idea/' \
+            --exclude='**/build/' \
+            --exclude='*.apk' \
+            --exclude='*.aab' \
+            --exclude='gradle-build.log'
+          printf '%s\n' \
+            'STRIDULATE v0.3 - ANDROID STUDIO PROJECT' \
+            '' \
+            'Open THIS folder in Android Studio.' \
+            'No Git installation is required.' \
+            'Wait for Gradle sync, then use Build > Generate App Bundles or APKs > Generate APKs.' \
+            '' \
+            'The large Perch/J.1 runtime files are intentionally not embedded in the APK.' \
+            'Use the separate in-place installer package when updating the existing field-test phone.' \
+            > "$RUNNER_TEMP/Stridulate-Android-v0.3-Android-Studio/OPEN_THIS_FOLDER_IN_ANDROID_STUDIO.txt"
+
+      - name: Upload standalone Android Studio project
+        uses: actions/upload-artifact@v4
+        with:
+          name: Stridulate-Android-v0.3-Android-Studio-Project
+          path: ${{ runner.temp }}/Stridulate-Android-v0.3-Android-Studio
+          include-hidden-files: true
+          if-no-files-found: error
+
       - name: Upload Gradle build log
         if: always()
         uses: actions/upload-artifact@v4
