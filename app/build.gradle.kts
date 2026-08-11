@@ -13,9 +13,9 @@ android {
         applicationId = "com.pgotta.stridulate"
         minSdk = 26
         targetSdk = 34
-        // Final Stage-J Android consolidation: frozen J.1 + Perch 2.0, 88 species.
+        // Stage-J Android consolidation: frozen J.1 + Perch 2.0, 88 species.
         versionCode = 15
-        versionName = "3.0.0"
+        versionName = "0.3"
         vectorDrawables { useSupportLibrary = true }
     }
 
