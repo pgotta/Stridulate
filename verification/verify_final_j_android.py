@@ -57,12 +57,21 @@ for token in ['"j1_labels.txt"','"labels.txt"','Frozen J.1 model active','ONNX R
 for stale in ['"insect_model.tflite"','Epoch-19 model active','TensorFlow runtime unavailable','bundled 67-class labels','(trained.classCount ?: 1) - 1','44.1 kHz mel spectrogram']:
     if stale in viewmodel: fail(f'ViewModel still contains stale pre-J.1 bootstrap: {stale}')
 
+for token in ['liveCandidates: StateFlow<List<Candidate>>','sortedByDescending { it.audioConfidence }','score-ranked candidates remain visible']:
+    if token not in viewmodel: fail(f'live discovery contract missing {token}')
+
+listen=(JAVA/'ui/screens/ListenScreen.kt').read_text()
+for token in ['LIVE POSSIBLE MATCHES','Top 3 J.1 evidence scores are always shown','PASSES J.1 GATE','POSSIBLE · BELOW GATE']:
+    if token not in listen: fail(f'live possible-match UX missing {token}')
+for stale in ['guesses below their J.1 evidence threshold are not shown or logged','Low-evidence output stays hidden']:
+    if stale in listen: fail(f'live UI still hides below-gate possibilities: {stale}')
+
 sensitivity=(JAVA/'audio/SoundSensitivity.kt').read_text()
 for token in ['_level = 0f','MAX_EXTRA_GAIN = 3f','getSharedPreferences']:
     if token not in sensitivity: fail(f'sensitivity contract missing {token}')
 
 result=(JAVA/'ui/screens/ResultScreen.kt').read_text()
-for token in ['High confidence','Likely match','No confident match','FROZEN J.1 · PERCH 2.0 · 88 SPECIES','localGuideId']:
+for token in ['High confidence','Likely match','No confident match','FROZEN J.1 · PERCH 2.0 · 88 SPECIES','localGuideId','Score-ranked frozen J.1 possibilities','BELOW GATE · NEEDS','J.1 gate:']:
     if token not in result: fail(f'result UX contract missing {token}')
 
 settings=(JAVA/'ui/screens/SettingsScreen.kt').read_text()

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,7 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Slider
@@ -38,9 +39,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pgotta.stridulate.audio.SoundSensitivity
+import com.pgotta.stridulate.classifier.Candidate
 import com.pgotta.stridulate.ui.Detection
 import com.pgotta.stridulate.ui.components.PrimaryButton
 import com.pgotta.stridulate.ui.components.RealSpectrogram
@@ -55,14 +58,24 @@ import com.pgotta.stridulate.ui.theme.JetBrainsMono
 import com.pgotta.stridulate.ui.theme.Line
 import com.pgotta.stridulate.ui.theme.Mute
 import com.pgotta.stridulate.ui.theme.Panel
+import com.pgotta.stridulate.ui.theme.Panel2
 import com.pgotta.stridulate.ui.theme.Parch
 import com.pgotta.stridulate.ui.theme.ParchDim
 import com.pgotta.stridulate.ui.theme.SpecBg
+import kotlin.math.roundToInt
 
+/**
+ * Live field-test screen.
+ *
+ * IMPORTANT: score-ranked possible matches are deliberately independent of the J.1
+ * acceptance gate. The gate controls what is logged as an accepted detection; it
+ * must never erase a useful candidate from the live research UI.
+ */
 @Composable
 fun ListenScreen(
     spectrogramColumns: List<FloatArray>,
     loudness: Float,
+    candidates: List<Candidate>,
     detections: List<Detection>,
     elapsedSeconds: Double,
     onStop: () -> Unit,
@@ -84,11 +97,12 @@ fun ListenScreen(
     val markerFractions = detections.flatMap { it.occurrences }
         .filter { it.endSeconds >= visibleStart }
         .map { ((it.endSeconds - visibleStart) / visibleSpan).toFloat().coerceIn(0f, 1f) }
+    val acceptedWindows = detections.sumOf { it.occurrences.size }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
         AppBarRow(
             title = "Listening",
-            sub = "FROZEN J.1 · PERCH 2.0 · ACCEPTED CALLS",
+            sub = "FROZEN J.1 · PERCH 2.0 · LIVE TOP 3",
             onBack = onCancel,
             status = "recording",
             statusOn = true
@@ -105,7 +119,7 @@ fun ListenScreen(
             Column {
                 Text("Listening for singing insects", fontFamily = Fraunces, fontSize = 19.sp, color = Parch)
                 Text(
-                    "FIRST RESULT AFTER ~5 SEC · ${elapsedSeconds.toInt()} SEC",
+                    "FIRST TOP 3 AFTER ~5 SEC · ${elapsedSeconds.toInt()} SEC",
                     fontFamily = JetBrainsMono,
                     fontSize = 9.5.sp,
                     color = Mute,
@@ -116,7 +130,7 @@ fun ListenScreen(
 
         Spacer(Modifier.height(11.dp))
         Box(
-            Modifier.fillMaxWidth().height(185.dp)
+            Modifier.fillMaxWidth().height(165.dp)
                 .clip(RoundedCornerShape(14.dp))
                 .background(SpecBg)
                 .border(BorderStroke(1.dp, Line), RoundedCornerShape(14.dp))
@@ -127,7 +141,7 @@ fun ListenScreen(
                 markerFractions = markerFractions
             )
             Text(
-                "AMBER MARKERS = ACCEPTED CALL WINDOWS",
+                "AMBER MARKERS = J.1 GATE-PASSING WINDOWS",
                 modifier = Modifier.align(Alignment.BottomStart).padding(8.dp)
                     .clip(RoundedCornerShape(6.dp)).background(Color(0xCC08100E))
                     .padding(horizontal = 7.dp, vertical = 4.dp),
@@ -140,7 +154,7 @@ fun ListenScreen(
         Spacer(Modifier.height(8.dp))
         Column(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Panel)
-                .border(BorderStroke(1.dp, Line), RoundedCornerShape(12.dp)).padding(horizontal = 12.dp, vertical = 9.dp)
+                .border(BorderStroke(1.dp, Line), RoundedCornerShape(12.dp)).padding(horizontal = 12.dp, vertical = 7.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Sound sensitivity", fontFamily = Fraunces, fontSize = 14.sp, color = Parch)
@@ -162,32 +176,52 @@ fun ListenScreen(
                 modifier = Modifier.fillMaxWidth()
             )
             Text(
-                "Boosts analysis and the spectrogram for quiet callers. OFF is neutral. The saved WAV always remains the original microphone audio.",
+                "Boosts analysis and visualization for quiet callers. The saved WAV remains original microphone audio.",
                 fontFamily = Inter,
-                fontSize = 10.5.sp,
+                fontSize = 10.sp,
                 color = Mute,
-                lineHeight = 15.sp
+                lineHeight = 14.sp
             )
         }
 
         Spacer(Modifier.height(7.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "LIVE POSSIBLE MATCHES",
+                fontFamily = JetBrainsMono,
+                fontSize = 10.sp,
+                color = Amber,
+                letterSpacing = 1.4.sp
+            )
+            Spacer(Modifier.weight(1f))
+            Text(
+                "level ${(loudness * 100).toInt().coerceIn(0, 100)}%",
+                fontFamily = JetBrainsMono,
+                fontSize = 9.sp,
+                color = Mute
+            )
+        }
         Text(
-            "Level ${(loudness * 100).toInt().coerceIn(0, 100)}% · guesses below their J.1 evidence threshold are not shown or logged.",
-            fontFamily = JetBrainsMono,
-            fontSize = 10.sp,
+            "Top 3 J.1 evidence scores are always shown. The gate only controls accepted/logged calls.",
+            fontFamily = Inter,
+            fontSize = 10.5.sp,
             color = Mute,
-            lineHeight = 15.sp
+            lineHeight = 14.sp
         )
         Spacer(Modifier.height(7.dp))
 
-        if (detections.isEmpty()) {
+        if (candidates.isEmpty()) {
             Box(
                 Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(13.dp))
                     .background(Panel).border(BorderStroke(1.dp, Line), RoundedCornerShape(13.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    "No accepted insect calls yet.\nLow-evidence output stays hidden.",
+                    if (elapsedSeconds < 5.0) {
+                        "Listening…\nTop 3 appears after the first ~5 seconds."
+                    } else {
+                        "Analyzing the current rolling window…"
+                    },
                     fontFamily = Inter,
                     fontSize = 13.sp,
                     color = ParchDim,
@@ -197,15 +231,24 @@ fun ListenScreen(
         } else {
             LazyColumn(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(7.dp)
             ) {
-                items(detections, key = { it.species.id }) { detection ->
-                    LiveDetectionRow(detection)
+                itemsIndexed(candidates.take(3), key = { _, candidate -> candidate.label }) { index, candidate ->
+                    LiveCandidateRow(index + 1, candidate)
+                }
+                item {
+                    Text(
+                        "$acceptedWindows gate-passing window${if (acceptedWindows == 1) "" else "s"} logged in this recording.",
+                        fontFamily = JetBrainsMono,
+                        fontSize = 8.5.sp,
+                        color = if (acceptedWindows > 0) Biolume else Mute,
+                        modifier = Modifier.padding(top = 2.dp, bottom = 4.dp)
+                    )
                 }
             }
         }
 
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(9.dp))
         PrimaryButton(
             "Stop & save to Log",
             onStop,
@@ -213,40 +256,67 @@ fun ListenScreen(
             container = Danger,
             content = Color.White
         )
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(12.dp))
     }
 }
 
 @Composable
-private fun LiveDetectionRow(detection: Detection) {
-    Row(
+private fun LiveCandidateRow(rank: Int, candidate: Candidate) {
+    val species = candidate.species ?: return
+    val scorePct = (candidate.audioConfidence * 100.0).roundToInt().coerceIn(0, 100)
+    val thresholdPct = candidate.acceptanceThreshold?.let { (it * 100.0).roundToInt().coerceIn(0, 100) }
+    val passed = candidate.evidenceAccepted == true
+    val statusColor = if (passed) Biolume else Amber
+    val status = when {
+        passed -> "PASSES J.1 GATE"
+        thresholdPct != null -> "POSSIBLE · BELOW GATE · NEEDS $thresholdPct%"
+        else -> "POSSIBLE RESULT"
+    }
+
+    Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp)).background(Panel)
-            .border(BorderStroke(1.dp, Line), RoundedCornerShape(13.dp)).padding(9.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .border(BorderStroke(1.dp, if (passed) Biolume.copy(alpha = 0.45f) else Line), RoundedCornerShape(13.dp))
+            .padding(9.dp)
     ) {
-        Box(Modifier.size(70.dp, 52.dp).clip(RoundedCornerShape(8.dp)).background(Ink)) {
-            SpeciesThumbnail(detection.species, Modifier.fillMaxSize())
-        }
-        Spacer(Modifier.width(11.dp))
-        Column(Modifier.weight(1f)) {
-            Text(detection.species.common, fontFamily = Fraunces, fontSize = 15.sp, color = Parch)
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                detection.species.latin,
-                fontFamily = Fraunces,
-                fontStyle = FontStyle.Italic,
-                fontSize = 11.sp,
-                color = Mute
-            )
-            Text(
-                "${detection.occurrences.size} accepted call${if (detection.occurrences.size == 1) "" else "s"}",
+                "$rank",
+                modifier = Modifier.width(20.dp),
                 fontFamily = JetBrainsMono,
-                fontSize = 9.sp,
-                color = ParchDim
+                fontSize = 10.sp,
+                color = Amber
+            )
+            Box(Modifier.size(58.dp, 44.dp).clip(RoundedCornerShape(8.dp)).background(Ink)) {
+                SpeciesThumbnail(species, Modifier.fillMaxSize())
+            }
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(species.common, fontFamily = Fraunces, fontSize = 14.5.sp, color = Parch)
+                if (!species.common.equals(species.latin, ignoreCase = true)) {
+                    Text(
+                        species.latin,
+                        fontFamily = Fraunces,
+                        fontStyle = FontStyle.Italic,
+                        fontSize = 10.5.sp,
+                        color = Mute
+                    )
+                }
+                Text(status, fontFamily = JetBrainsMono, fontSize = 8.sp, color = statusColor)
+            }
+            Text(
+                "$scorePct%",
+                fontFamily = JetBrainsMono,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                color = if (passed) Biolume else Parch
             )
         }
-        Column(horizontalAlignment = Alignment.End) {
-            Text("${detection.confidencePct}%", fontFamily = JetBrainsMono, fontSize = 16.sp, color = Biolume)
-            Text("peak ${detection.peakConfidencePct}%", fontFamily = JetBrainsMono, fontSize = 8.5.sp, color = Mute)
+        Spacer(Modifier.height(6.dp))
+        Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(100.dp)).background(Panel2)) {
+            Box(
+                Modifier.fillMaxHeight().fillMaxWidth(candidate.audioConfidence.toFloat().coerceIn(0f, 1f))
+                    .background(statusColor)
+            )
         }
     }
 }
