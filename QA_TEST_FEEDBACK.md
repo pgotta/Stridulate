@@ -39,3 +39,10 @@ The shared ZIP contains:
 - `README.txt` — export description
 
 Feedback stays in private app storage across normal in-place app upgrades until **Clear** is explicitly confirmed.
+
+
+## Live possible-match gate
+
+The live Top 3 is no longer forced to display a species for every rolling window. A separate **Possible-match gate** filters weak/non-insect windows using acoustic insect-likelihood, recording quality, recurrence, and evidence strength. The slider runs from **STRICT** to **SENSITIVE** and does not alter the frozen J.1 accepted-call thresholds.
+
+The QA panel is collapsed to one thin row by default. Tap the row to set a target, export, or clear feedback. QA exports now include the possible-match gate setting and acoustic diagnostics (insect-likelihood, peak frequency, tonality, low-frequency ratio, and peak stability).

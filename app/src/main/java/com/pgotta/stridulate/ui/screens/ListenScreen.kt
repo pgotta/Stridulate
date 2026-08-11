@@ -42,6 +42,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.pgotta.stridulate.audio.PossibleMatchGate
 import com.pgotta.stridulate.audio.SoundSensitivity
 import com.pgotta.stridulate.classifier.Candidate
 import com.pgotta.stridulate.data.Species
@@ -96,6 +97,7 @@ fun ListenScreen(
 ) {
     val context = LocalContext.current
     var sensitivity by remember { mutableStateOf(SoundSensitivity.initialize(context)) }
+    var possibleMatchSensitivity by remember { mutableStateOf(PossibleMatchGate.initialize(context)) }
     val infinite = rememberInfiniteTransition(label = "pulse")
     val pulseScale by infinite.animateFloat(
         initialValue = 1f,
@@ -132,7 +134,7 @@ fun ListenScreen(
             Column {
                 Text("Listening for singing insects", fontFamily = Fraunces, fontSize = 19.sp, color = Parch)
                 Text(
-                    "FIRST TOP 3 AFTER ~5 SEC · ${elapsedSeconds.toInt()} SEC",
+                    "FIRST CHECK AFTER ~5 SEC · ${elapsedSeconds.toInt()} SEC",
                     fontFamily = JetBrainsMono,
                     fontSize = 9.5.sp,
                     color = Mute,
@@ -195,6 +197,39 @@ fun ListenScreen(
                 color = Mute,
                 lineHeight = 14.sp
             )
+
+            Spacer(Modifier.height(7.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Possible-match gate", fontFamily = Fraunces, fontSize = 14.sp, color = Parch)
+                Spacer(Modifier.weight(1f))
+                Text(
+                    PossibleMatchGate.profile(possibleMatchSensitivity),
+                    fontFamily = JetBrainsMono,
+                    fontSize = 9.5.sp,
+                    color = Amber
+                )
+            }
+            Slider(
+                value = possibleMatchSensitivity,
+                onValueChange = { value ->
+                    possibleMatchSensitivity = value.coerceIn(0f, 1f)
+                    PossibleMatchGate.set(context, possibleMatchSensitivity)
+                },
+                valueRange = 0f..1f,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Row(Modifier.fillMaxWidth()) {
+                Text("STRICT", fontFamily = JetBrainsMono, fontSize = 8.sp, color = Mute)
+                Spacer(Modifier.weight(1f))
+                Text("SENSITIVE", fontFamily = JetBrainsMono, fontSize = 8.sp, color = Mute)
+            }
+            Text(
+                "Filters silence/noise and unstable guesses from Live Possible Matches. It does not change the frozen J.1 accepted-call thresholds.",
+                fontFamily = Inter,
+                fontSize = 9.5.sp,
+                color = Mute,
+                lineHeight = 13.sp
+            )
         }
 
         Spacer(Modifier.height(7.dp))
@@ -227,7 +262,7 @@ fun ListenScreen(
             )
         }
         Text(
-            "Top 3 J.1 evidence scores are always shown. The gate only controls accepted/logged calls.",
+            "Possible matches are shown only when the current window clears your display gate; frozen J.1 still controls accepted/logged calls.",
             fontFamily = Inter,
             fontSize = 10.5.sp,
             color = Mute,
@@ -243,9 +278,9 @@ fun ListenScreen(
             ) {
                 Text(
                     if (elapsedSeconds < 5.0) {
-                        "Listening…\nTop 3 appears after the first ~5 seconds."
+                        "Listening…\nFirst analysis starts after ~5 seconds."
                     } else {
-                        "Analyzing the current rolling window…"
+                        "No insect-like match above the current gate.\nMove the Possible-match gate toward SENSITIVE to inspect weaker candidates."
                     },
                     fontFamily = Inter,
                     fontSize = 13.sp,
