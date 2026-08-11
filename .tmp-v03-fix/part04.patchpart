@@ -1,0 +1,136 @@
+-PERCH_SHA='4dcf71c18a147198545944bb5149697e89e3ad2e16637fa8f0edf6d13035a017'
+-PERCH_BYTES=413350933
+-CALIBRATION_SHA='fddecaabe0e39ebdb98eac5e804b2f77a5c9f9f25afd4510b5c740cd83e2d7f9'
++RUNTIME = {
++    'runtime/perch_v2_no_dft.onnx': (413350933, '4dcf71c18a147198545944bb5149697e89e3ad2e16637fa8f0edf6d13035a017'),
++    'runtime/j1_stage_d_affine.bin': (541040, '066c6cf64b165abb83af93e4b1a38a4a3ffce2fa9ec476a5b3b9695466a6d76a'),
++    'runtime/j1_calibration.json': (34189, 'fddecaabe0e39ebdb98eac5e804b2f77a5c9f9f25afd4510b5c740cd83e2d7f9'),
++}
++PERCH_SHA=RUNTIME['runtime/perch_v2_no_dft.onnx'][1]
++PERCH_BYTES=RUNTIME['runtime/perch_v2_no_dft.onnx'][0]
++CALIBRATION_SHA=RUNTIME['runtime/j1_calibration.json'][1]
+ 
+ def fail(msg: str):
+     raise SystemExit('VERIFY FAIL: ' + msg)
+ 
+-def sha(p: Path): return hashlib.sha256(p.read_bytes()).hexdigest()
++def sha(p: Path):
++    h=hashlib.sha256()
++    with p.open('rb') as f:
++        while True:
++            b=f.read(1024*1024)
++            if not b: break
++            h.update(b)
++    return h.hexdigest()
+ 
+ for name, expected in EXPECTED.items():
+     p=ASSETS/name
+@@ -30,12 +42,20 @@ if len(labels)!=88 or len(set(labels))!=88: fail('J.1 label list must contain ex
+ if (ASSETS/'labels.txt').read_bytes() != (ASSETS/'j1_labels.txt').read_bytes(): fail('labels.txt must mirror frozen J.1 order')
+ 
+ build=(ROOT/'app/build.gradle.kts').read_text()
+-for token in ['applicationId = "com.pgotta.stridulate"','versionCode = 15','versionName = "0.3"','onnxruntime-android:1.26.0']:
++for token in ['applicationId = "com.pgotta.stridulate"','versionCode = 15','versionName = "0.3"','onnxruntime-android:1.26.0','noCompress += "onnx"','prepareJ1Runtime','stridulate.bundleJ1Runtime','tphakala/Perch-v2']:
+     if token not in build: fail(f'build contract missing {token}')
+ 
+ classifier=(JAVA/'classifier/TfLiteClassifier.kt').read_text()
+-for token in [PERCH_SHA, str(PERCH_BYTES), 'models/perch_v2_no_dft.onnx','models/j1_stage_d_affine.bin','066c6cf64b165abb83af93e4b1a38a4a3ffce2fa9ec476a5b3b9695466a6d76a','models/j1_calibration.json',CALIBRATION_SHA,'Frozen J.1','WINDOW_SAMPLES = 160000','SAMPLE_RATE = 32000']:
++for token in [PERCH_SHA, str(PERCH_BYTES), 'models/perch_v2_no_dft.onnx','runtime/perch_v2_no_dft.onnx','models/j1_stage_d_affine.bin','runtime/j1_stage_d_affine.bin','066c6cf64b165abb83af93e4b1a38a4a3ffce2fa9ec476a5b3b9695466a6d76a','models/j1_calibration.json','runtime/j1_calibration.json',CALIBRATION_SHA,'ensureRuntimeFile','Frozen J.1','WINDOW_SAMPLES = 160000','SAMPLE_RATE = 32000']:
+     if token not in classifier: fail(f'classifier contract missing {token}')
++for stale in ['modelAsset: String = "insect_model.tflite"','Run the v3 build/install helper']:
++    if stale in classifier: fail(f'classifier still contains stale bootstrap token: {stale}')
++
++viewmodel=(JAVA/'ui/StridulateViewModel.kt').read_text()
++for token in ['"j1_labels.txt"','"labels.txt"','Frozen J.1 model active','ONNX Runtime unavailable','trained.classCount ?: tier1Species.size']:
++    if token not in viewmodel: fail(f'ViewModel J.1 bootstrap contract missing {token}')
++for stale in ['"insect_model.tflite"','Epoch-19 model active','TensorFlow runtime unavailable','bundled 67-class labels','(trained.classCount ?: 1) - 1','44.1 kHz mel spectrogram']:
++    if stale in viewmodel: fail(f'ViewModel still contains stale pre-J.1 bootstrap: {stale}')
+ 
+ sensitivity=(JAVA/'audio/SoundSensitivity.kt').read_text()
+ for token in ['_level = 0f','MAX_EXTRA_GAIN = 3f','getSharedPreferences']:
+@@ -56,8 +76,28 @@ helper=(JAVA/'ui/ReanalysisSupport.kt').read_text()
+ for token in ['Re-analyze with frozen J.1','reanalyzeSavedUnknown']:
+     if token not in community+helper: fail(f'Unknown reanalysis contract missing {token}')
+ 
+-for runtime in ['perch_v2_no_dft.onnx','j1_stage_d_affine.bin','j1_calibration.json']:
+-    if (ASSETS/runtime).exists(): fail(f'{runtime} must be staged at install time, not committed in assets')
+-
++present=[]
++for rel,(size,expected) in RUNTIME.items():
++    p=ASSETS/rel
++    if p.exists():
++        if not p.is_file(): fail(f'bundled runtime path is not a file: {rel}')
++        if p.stat().st_size != size: fail(f'{rel} size {p.stat().st_size} != {size}')
++        got=sha(p)
++        if got != expected: fail(f'{rel} sha256 {got} != {expected}')
++        present.append(rel)
++props=(ROOT/'gradle.properties').read_text() if (ROOT/'gradle.properties').is_file() else ''
++bundle_requested='stridulate.bundleJ1Runtime=true' in props.replace(' ', '')
++support={
++    'runtime/j1_stage_d_affine.bin',
++    'runtime/j1_calibration.json',
++}
++if len(present) == len(RUNTIME):
++    mode='bundled-self-contained'
++elif bundle_requested and set(present) == support:
++    mode='standalone-download-pending'
++elif present:
++    fail(f'unexpected partial bundled runtime: found {present}; bundle_requested={bundle_requested}')
++else:
++    mode='external-staged'
+ print('FINAL J ANDROID VERIFY PASS')
+-print(f'version=0.3 labels={len(labels)} affine=541040 bytes perch={PERCH_BYTES} bytes calibration={CALIBRATION_SHA} (external staged runtime)')
++print(f'version=0.3 labels={len(labels)} runtime_mode={mode} affine=541040 perch={PERCH_BYTES} calibration={CALIBRATION_SHA}')
+diff --git a/verification/verify_final_j_apk.py b/verification/verify_final_j_apk.py
+index 7e4cebd..abe55a6 100644
+--- a/verification/verify_final_j_apk.py
++++ b/verification/verify_final_j_apk.py
+@@ -4,20 +4,41 @@ import hashlib, sys, zipfile
+ from pathlib import Path
+ 
+ EXPECTED = {
+-    'assets/j1_labels.txt': '0797656d8c227198545944bb5149697e89e3ad2e16637fa8f0edf6d13035a017',
+-    'assets/labels.txt': '0797656d8c227198545944bb5149697e89e3ad2e16637fa8f0edf6d13035a017',
++    'assets/j1_labels.txt': (None, '0797656d8c2271f04224e109584c6f14a43405a8d30da6f54344c5912a78053c'),
++    'assets/labels.txt': (None, '0797656d8c2271f04224e109584c6f14a43405a8d30da6f54344c5912a78053c'),
++}
++RUNTIME = {
++    'assets/runtime/perch_v2_no_dft.onnx': (413350933, '4dcf71c18a147198545944bb5149697e89e3ad2e16637fa8f0edf6d13035a017'),
++    'assets/runtime/j1_stage_d_affine.bin': (541040, '066c6cf64b165abb83af93e4b1a38a4a3ffce2fa9ec476a5b3b9695466a6d76a'),
++    'assets/runtime/j1_calibration.json': (34189, 'fddecaabe0e39ebdb98eac5e804b2f77a5c9f9f25afd4510b5c740cd83e2d7f9'),
+ }
+ 
+ def fail(msg): raise SystemExit('APK VERIFY FAIL: '+msg)
++def hash_member(z, name):
++    h=hashlib.sha256()
++    with z.open(name) as f:
++        while True:
++            b=f.read(1024*1024)
++            if not b: break
++            h.update(b)
++    return h.hexdigest()
++
+ if len(sys.argv)!=2: fail('usage: verify_final_j_apk.py app-debug.apk')
+ apk=Path(sys.argv[1])
+ if not apk.is_file(): fail(f'missing {apk}')
+ with zipfile.ZipFile(apk) as z:
+     names=set(z.namelist())
+-    if any(n.endswith(('perch_v2_no_dft.onnx','j1_stage_d_affine.bin','j1_calibration.json')) for n in names):
+-        fail('external frozen J.1 runtime file was accidentally packaged')
+-    for name,expected in EXPECTED.items():
++    for name,(_,expected) in EXPECTED.items():
+         if name not in names: fail(f'missing {name}')
+-        got=hashlib.sha256(z.read(name)).hexdigest()
++        got=hash_member(z,name)
++        if got!=expected: fail(f'{name} sha256 {got} != {expected}')
++    present=[name for name in RUNTIME if name in names]
++    if present and len(present)!=len(RUNTIME): fail(f'partial bundled runtime in APK: {present}')
++    for name in present:
++        size,expected=RUNTIME[name]
++        info=z.getinfo(name)
++        if info.file_size!=size: fail(f'{name} size {info.file_size} != {size}')
++        got=hash_member(z,name)
+         if got!=expected: fail(f'{name} sha256 {got} != {expected}')
+-print('FINAL J APK VERIFY PASS')
++    mode='bundled-self-contained' if present else 'external-staged'
++print(f'FINAL J APK VERIFY PASS runtime_mode={mode}')
