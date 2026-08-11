@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.pgotta.stridulate.audio.AudioFileDecoder
 import com.pgotta.stridulate.audio.ClipAnalyzer
 import com.pgotta.stridulate.audio.FeatureExtractor
+import com.pgotta.stridulate.audio.InsectSignalAssessment
 import com.pgotta.stridulate.audio.MeasuredSignature
 import com.pgotta.stridulate.audio.MicRecorder
 import com.pgotta.stridulate.audio.PossibleMatchGate
@@ -93,6 +94,8 @@ data class IdResult(
     val contextApplied: Boolean = false,
     val contextSummary: String = "Audio ranking only.",
     val recordingQuality: RecordingQuality? = null,
+    /** Class-agnostic raw-audio front gate. J.1 scores remain available for QA even when this fails. */
+    val signalAssessment: InsectSignalAssessment? = null,
     /** Temporary lossless evidence retained only until the result is dismissed or saved. */
     val evidenceAudio: EvidenceAudio? = null,
     /** Local archive record when the user explicitly saves this result for community review. */
@@ -259,6 +262,8 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
     // score-ranked candidates remain visible even when none crosses its J.1 threshold.
     private val _liveCandidates = MutableStateFlow<List<Candidate>>(emptyList())
     val liveCandidates: StateFlow<List<Candidate>> = _liveCandidates
+    private val _liveSignalAssessment = MutableStateFlow<InsectSignalAssessment?>(null)
+    val liveSignalAssessment: StateFlow<InsectSignalAssessment?> = _liveSignalAssessment
     private var lastLiveFeedbackSnapshot: TestFeedbackSnapshot? = null
     private val liveCandidateStreaks = mutableMapOf<String, Int>()
     private var previousRawLiveLabels: Set<String> = emptySet()
@@ -357,6 +362,11 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
         testFeedbackRepository.record(verdict, candidateLabel, snapshot)
     }
 
+    fun recordCurrentLiveWindowAsNoise() {
+        val snapshot = lastLiveFeedbackSnapshot ?: return
+        testFeedbackRepository.record(FeedbackVerdict.NOISE, null, snapshot)
+    }
+
     fun recordResultTestFeedback(candidateLabel: String, verdict: FeedbackVerdict) {
         val result = (_ui.value as? UiState.Result)?.result ?: return
         val snapshot = TestFeedbackSnapshot(
@@ -365,9 +375,24 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
             candidates = result.candidates.take(3),
             quality = result.recordingQuality,
             signature = result.signature,
+            signalAssessment = result.signalAssessment,
             observationContext = result.observationContext
         )
         testFeedbackRepository.record(verdict, candidateLabel, snapshot)
+    }
+
+    fun recordCurrentResultAsNoise() {
+        val result = (_ui.value as? UiState.Result)?.result ?: return
+        val snapshot = TestFeedbackSnapshot(
+            source = "result",
+            sessionKey = result.communityRecordId ?: result.evidenceAudio?.filePath,
+            candidates = result.candidates.take(3),
+            quality = result.recordingQuality,
+            signature = result.signature,
+            signalAssessment = result.signalAssessment,
+            observationContext = result.observationContext
+        )
+        testFeedbackRepository.record(FeedbackVerdict.NOISE, null, snapshot)
     }
 
     fun startListening() {
@@ -384,6 +409,7 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
     private fun beginListening() {
         _ui.value = UiState.Listening
         _liveCandidates.value = emptyList()
+        _liveSignalAssessment.value = null
         lastLiveFeedbackSnapshot = null
         liveCandidateStreaks.clear()
         previousRawLiveLabels = emptySet()
@@ -419,6 +445,7 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
         val (pcm, pcmSr) = mic.capturedPcm()
         if (pcm.size < pcmSr * 5) return
         val result = withContext(Dispatchers.Default) { clipAnalyzer.analyze(pcm, pcmSr) } ?: return
+        _liveSignalAssessment.value = result.signalAssessment
 
         // Discovery view: preserve useful below-J.1 candidates, but do not force arbitrary
         // species onto silence/noise. The user-controlled PossibleMatchGate is deliberately
@@ -441,13 +468,21 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
         liveCandidateStreaks.keys.retainAll(rawLabels)
         previousRawLiveLabels = rawLabels
 
-        _liveCandidates.value = rawTopThree.filter { candidate ->
-            PossibleMatchGate.allows(
-                candidate = candidate,
-                quality = result.quality,
-                signature = result.signature,
-                consecutiveWindows = liveCandidateStreaks[candidate.label] ?: 1
-            )
+        _liveCandidates.value = if (!result.signalAssessment.passed) {
+            emptyList()
+        } else {
+            rawTopThree.filter { candidate ->
+                // A J.1 threshold-passing candidate remains visible for QA even if its specific
+                // call-profile check later vetoes accepted/logged status. Below-threshold
+                // candidates must pass both the display gate and any trusted gross profile check.
+                candidate.evidenceAccepted == true ||
+                    (candidate.callCompatibilityPassed != false && PossibleMatchGate.allows(
+                        candidate = candidate,
+                        quality = result.quality,
+                        signature = result.signature,
+                        consecutiveWindows = liveCandidateStreaks[candidate.label] ?: 1
+                    ))
+            }
         }
 
         val feedbackNow = _recordingElapsedSeconds.value
@@ -457,13 +492,16 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
             windowStartSeconds = (feedbackNow - LIVE_WINDOW_SECONDS).coerceAtLeast(0.0),
             windowEndSeconds = feedbackNow,
             candidates = rawTopThree,
-            quality = result.quality,
-            signature = result.signature,
+            quality = result.rawQuality,
+            signature = result.rawSignature,
+            signalAssessment = result.signalAssessment,
             observationContext = environment.value
         )
 
-        // Decision/logging view: classifier order intentionally keeps any J.1-accepted species
-        // ahead of below-threshold candidates. Only this path is gated.
+        // Decision/logging view: the raw-audio signal gate is mandatory. J.1 can still be
+        // calculated and exported for QA on rejected noise windows, but no accepted/logged call
+        // may originate from silence/noise that failed the class-agnostic front gate.
+        if (!result.signalAssessment.passed) return
         val top = result.candidates.firstOrNull() ?: return
         val runnerUp = result.candidates.getOrNull(1)
         val policy = classifier.policy ?: return
@@ -539,6 +577,7 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
             }
             _recordingElapsedSeconds.value = 0.0
             _liveCandidates.value = emptyList()
+            _liveSignalAssessment.value = null
             lastLiveFeedbackSnapshot = null
             liveCandidateStreaks.clear()
             previousRawLiveLabels = emptySet()
@@ -555,6 +594,7 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
         _liveDetections.value = emptyList()
         _recordingElapsedSeconds.value = 0.0
         _liveCandidates.value = emptyList()
+        _liveSignalAssessment.value = null
         lastLiveFeedbackSnapshot = null
         liveCandidateStreaks.clear()
         previousRawLiveLabels = emptySet()
@@ -621,6 +661,7 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
                         candidates = res.candidates,
                         spectrogram = res.spectrogram,
                         recordingQuality = res.quality,
+                        signalAssessment = res.signalAssessment,
                         evidenceAudio = evidence
                     ),
                     contextOverride = contextSnapshot
@@ -677,12 +718,21 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
             recordingQuality = rawResult.recordingQuality,
             policy = policy
         )
-        val decision = when (gate.type) {
-            OpenSetDecisionType.STRONG_POSSIBLE -> IdentificationDecision.IDENTIFIED
-            OpenSetDecisionType.POSSIBLE -> IdentificationDecision.POSSIBLE_MATCH
-            OpenSetDecisionType.REJECTED -> IdentificationDecision.NO_CONFIDENT_MATCH
+        val signalRejected = rawResult.signalAssessment?.passed == false
+        val decision = if (signalRejected) {
+            IdentificationDecision.NO_CONFIDENT_MATCH
+        } else {
+            when (gate.type) {
+                OpenSetDecisionType.STRONG_POSSIBLE -> IdentificationDecision.IDENTIFIED
+                OpenSetDecisionType.POSSIBLE -> IdentificationDecision.POSSIBLE_MATCH
+                OpenSetDecisionType.REJECTED -> IdentificationDecision.NO_CONFIDENT_MATCH
+            }
         }
-        val reason = gate.reason
+        val reason = if (signalRejected) {
+            rawResult.signalAssessment?.reason ?: "No insect-like signal was detected in the raw audio."
+        } else {
+            gate.reason
+        }
 
         val contextSnapshot = contextOverride ?: environment.value
         val baseResult = rawResult.copy(

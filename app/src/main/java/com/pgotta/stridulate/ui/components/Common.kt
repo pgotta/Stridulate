@@ -136,7 +136,7 @@ fun ConfidenceRing(pct: Int, modifier: Modifier = Modifier) {
                 color = Parch
             )
             Text(
-                "% AUDIO",
+                "J.1 SCORE",
                 fontFamily = JetBrainsMono,
                 fontSize = 10.sp,
                 color = Mute,

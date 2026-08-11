@@ -61,7 +61,7 @@ for token in ['liveCandidates: StateFlow<List<Candidate>>','sortedByDescending {
     if token not in viewmodel: fail(f'live discovery contract missing {token}')
 
 listen=(JAVA/'ui/screens/ListenScreen.kt').read_text()
-for token in ['LIVE POSSIBLE MATCHES','PASSES J.1 GATE','POSSIBLE · BELOW GATE','Possible-match gate']:
+for token in ['LIVE POSSIBLE MATCHES','PASSES J.1 GATE','POSSIBLE · BELOW J.1 GATE','Insect / noise gate']:
     if token not in listen: fail(f'live possible-match UX missing {token}')
 for stale in ['guesses below their J.1 evidence threshold are not shown or logged','Low-evidence output stays hidden','Top 3 J.1 evidence scores are always shown']:
     if stale in listen: fail(f'live UI still hides below-gate possibilities: {stale}')
@@ -71,7 +71,7 @@ for token in ['_level = 0f','MAX_EXTRA_GAIN = 3f','getSharedPreferences']:
     if token not in sensitivity: fail(f'sensitivity contract missing {token}')
 
 result=(JAVA/'ui/screens/ResultScreen.kt').read_text()
-for token in ['High confidence','Likely match','No confident match','FROZEN J.1 · PERCH 2.0 · 88 SPECIES','localGuideId','Score-ranked frozen J.1 possibilities','BELOW GATE · NEEDS','J.1 gate:']:
+for token in ['High confidence','Likely match','No confident match','FROZEN J.1 · PERCH 2.0 · 88 SPECIES','localGuideId','Score-ranked frozen J.1 possibilities','BELOW J.1 GATE · NEEDS','J.1 gate:']:
     if token not in result: fail(f'result UX contract missing {token}')
 
 settings=(JAVA/'ui/screens/SettingsScreen.kt').read_text()

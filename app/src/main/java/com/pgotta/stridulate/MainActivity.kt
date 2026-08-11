@@ -127,6 +127,7 @@ fun StridulateApp(
     val ui by vm.ui.collectAsState()
     val liveDetections by vm.liveDetections.collectAsState()
     val liveCandidates by vm.liveCandidates.collectAsState()
+    val liveSignalAssessment by vm.liveSignalAssessment.collectAsState()
     val recordingElapsedSeconds by vm.recordingElapsedSeconds.collectAsState()
     val logSessions by vm.logSessions.collectAsState()
     val tierSettings by vm.tierSettings.collectAsState()
@@ -347,6 +348,7 @@ fun StridulateApp(
                     spectrogramColumns = liveColumns.toList(),
                     loudness = loudness,
                     candidates = liveCandidates,
+                    signalAssessment = liveSignalAssessment,
                     detections = liveDetections,
                     elapsedSeconds = recordingElapsedSeconds,
                     testSpecies = vm.tier1Species,
@@ -357,6 +359,7 @@ fun StridulateApp(
                     onClearTestTarget = vm::clearTestTarget,
                     onExportTestFeedback = vm::requestTestFeedbackExport,
                     onClearTestFeedback = vm::clearTestFeedback,
+                    onMarkCurrentNoise = vm::recordCurrentLiveWindowAsNoise,
                     onTestFeedback = vm::recordLiveTestFeedback,
                     onStop = {
                         tab = Tab.Session
@@ -388,6 +391,7 @@ fun StridulateApp(
                     onClearTestTarget = vm::clearTestTarget,
                     onExportTestFeedback = vm::requestTestFeedbackExport,
                     onClearTestFeedback = vm::clearTestFeedback,
+                    onMarkCurrentNoise = vm::recordCurrentResultAsNoise,
                     onTestFeedback = vm::recordResultTestFeedback
                 )
                 is UiState.Error -> ErrorScreen(s.message) { vm.dismissResult() }

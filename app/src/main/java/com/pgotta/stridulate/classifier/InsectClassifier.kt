@@ -25,7 +25,10 @@ data class Candidate(
     /** Absolute J.1 evidence decision. Null for legacy/fallback classifiers. */
     val evidenceAccepted: Boolean? = null,
     /** Short model-specific evidence note for diagnostics and result explanations. */
-    val evidenceSupport: String? = null
+    val evidenceSupport: String? = null,
+    /** Gross frequency/bandwidth/rhythm sanity check when a specific field-guide profile exists. */
+    val callCompatibilityPassed: Boolean? = null,
+    val callCompatibilitySummary: String? = null
 ) {
     val isUnknown: Boolean get() = species == null
     val audioConfidence: Double get() = confidence

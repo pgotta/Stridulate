@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pgotta.stridulate.audio.PossibleMatchGate
 import com.pgotta.stridulate.audio.SoundSensitivity
+import com.pgotta.stridulate.audio.InsectSignalAssessment
 import com.pgotta.stridulate.classifier.Candidate
 import com.pgotta.stridulate.data.Species
 import com.pgotta.stridulate.qa.FeedbackVerdict
@@ -81,6 +82,7 @@ fun ListenScreen(
     spectrogramColumns: List<FloatArray>,
     loudness: Float,
     candidates: List<Candidate>,
+    signalAssessment: InsectSignalAssessment?,
     detections: List<Detection>,
     elapsedSeconds: Double,
     testSpecies: List<Species>,
@@ -91,6 +93,7 @@ fun ListenScreen(
     onClearTestTarget: () -> Unit,
     onExportTestFeedback: () -> Unit,
     onClearTestFeedback: () -> Unit,
+    onMarkCurrentNoise: () -> Unit,
     onTestFeedback: (String, FeedbackVerdict) -> Unit,
     onStop: () -> Unit,
     onCancel: () -> Unit
@@ -200,7 +203,7 @@ fun ListenScreen(
 
             Spacer(Modifier.height(7.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Possible-match gate", fontFamily = Fraunces, fontSize = 14.sp, color = Parch)
+                Text("Insect / noise gate", fontFamily = Fraunces, fontSize = 14.sp, color = Parch)
                 Spacer(Modifier.weight(1f))
                 Text(
                     PossibleMatchGate.profile(possibleMatchSensitivity),
@@ -224,7 +227,7 @@ fun ListenScreen(
                 Text("SENSITIVE", fontFamily = JetBrainsMono, fontSize = 8.sp, color = Mute)
             }
             Text(
-                "Filters silence/noise and unstable guesses from Live Possible Matches. It does not change the frozen J.1 accepted-call thresholds.",
+                "Runs on RAW audio before Sound sensitivity gain. Filters silence, hum, speech/wind and unstructured broadband noise before J.1 candidates are shown.",
                 fontFamily = Inter,
                 fontSize = 9.5.sp,
                 color = Mute,
@@ -241,7 +244,8 @@ fun ListenScreen(
             onSetNoiseTarget = onSetTestTargetNoise,
             onClearTarget = onClearTestTarget,
             onExport = onExportTestFeedback,
-            onClearLog = onClearTestFeedback
+            onClearLog = onClearTestFeedback,
+            onMarkCurrentNoise = onMarkCurrentNoise
         )
 
         Spacer(Modifier.height(7.dp))
@@ -255,14 +259,14 @@ fun ListenScreen(
             )
             Spacer(Modifier.weight(1f))
             Text(
-                "level ${(loudness * 100).toInt().coerceIn(0, 100)}%",
+                signalAssessment?.let { "signal ${it.score}/100" } ?: "level ${(loudness * 100).toInt().coerceIn(0, 100)}%",
                 fontFamily = JetBrainsMono,
                 fontSize = 9.sp,
                 color = Mute
             )
         }
         Text(
-            "Possible matches are shown only when the current window clears your display gate; frozen J.1 still controls accepted/logged calls.",
+            "Raw audio must first pass the class-agnostic insect-signal gate. J.1 then ranks species; a trusted gross call-profile conflict can veto accepted/logged status.",
             fontFamily = Inter,
             fontSize = 10.5.sp,
             color = Mute,
@@ -279,8 +283,10 @@ fun ListenScreen(
                 Text(
                     if (elapsedSeconds < 5.0) {
                         "Listening…\nFirst analysis starts after ~5 seconds."
+                    } else if (signalAssessment?.passed == false) {
+                        "${signalAssessment.reason}\nRaw J.1 scores are still retained in the QA log."
                     } else {
-                        "No insect-like match above the current gate.\nMove the Possible-match gate toward SENSITIVE to inspect weaker candidates."
+                        "No stable possible match above the current display gate.\nMove the Insect / noise gate toward SENSITIVE only for weak-caller testing."
                     },
                     fontFamily = Inter,
                     fontSize = 13.sp,
@@ -328,8 +334,9 @@ private fun LiveCandidateRow(rank: Int, candidate: Candidate, onFeedback: (Feedb
     val passed = candidate.evidenceAccepted == true
     val statusColor = if (passed) Biolume else Amber
     val status = when {
+        candidate.callCompatibilityPassed == false -> "J.1 CANDIDATE · CALL PROFILE CONFLICT"
         passed -> "PASSES J.1 GATE"
-        thresholdPct != null -> "POSSIBLE · BELOW GATE · NEEDS $thresholdPct%"
+        thresholdPct != null -> "POSSIBLE · BELOW J.1 GATE · NEEDS $thresholdPct"
         else -> "POSSIBLE RESULT"
     }
 
@@ -364,7 +371,7 @@ private fun LiveCandidateRow(rank: Int, candidate: Candidate, onFeedback: (Feedb
                 Text(status, fontFamily = JetBrainsMono, fontSize = 8.sp, color = statusColor)
             }
             Text(
-                "$scorePct%",
+                "J.1 $scorePct",
                 fontFamily = JetBrainsMono,
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp,

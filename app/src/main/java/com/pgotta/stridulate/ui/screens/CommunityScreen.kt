@@ -325,7 +325,7 @@ fun CommunityRecordScreen(
         Spacer(Modifier.height(12.dp))
         SectionCard("STRIDULATE RESULT") {
             ValueLine("Outcome", record.decision.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() })
-            ValueLine("Model top", "${record.modelTopLabel.replace('_', ' ')} · ${(record.modelTopConfidence * 100).roundToInt()}%")
+            ValueLine("Model top", "${record.modelTopLabel.replace('_', ' ')} · J.1 score ${(record.modelTopConfidence * 100).roundToInt()}")
             if (record.candidates.isNotEmpty()) {
                 Spacer(Modifier.height(7.dp))
                 record.candidates.forEachIndexed { index, candidate ->

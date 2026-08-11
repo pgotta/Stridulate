@@ -49,11 +49,13 @@ object OpenSetDecision {
         if (isFrozenJ1) {
             val requiredConfidence = top.acceptanceThreshold!!.coerceIn(0.0, 1.0)
             val highThreshold = (top.highConfidenceThreshold ?: 0.95).coerceIn(requiredConfidence, 1.0)
-            val acousticCheck = AcousticCompatibilityResult(
-                true,
-                "Frozen J.1 uses its calibrated Perch evidence directly; the legacy hand-authored acoustic veto is not applied."
-            )
+            val acousticCheck = when (top.callCompatibilityPassed) {
+                false -> AcousticCompatibilityResult(false, top.callCompatibilitySummary ?: "A gross call-profile conflict was detected.")
+                true -> AcousticCompatibilityResult(true, top.callCompatibilitySummary ?: "The basic call-profile check passed.")
+                null -> AcousticCompatibilityResult(true, "No specific field-guide acoustic profile is available for a second-stage veto; frozen J.1 evidence is shown with the class-agnostic signal gate.")
+            }
             val highConfidence = top.evidenceAccepted == true &&
+                acousticCheck.passed &&
                 top.audioConfidence >= highThreshold &&
                 margin >= 0.10 &&
                 recordingQuality?.grade == RecordingQualityGrade.GOOD
@@ -61,6 +63,7 @@ object OpenSetDecision {
                 qualityBlock != null -> OpenSetDecisionType.REJECTED
                 topIsUnknown -> OpenSetDecisionType.REJECTED
                 top.evidenceAccepted != true -> OpenSetDecisionType.REJECTED
+                !acousticCheck.passed -> OpenSetDecisionType.REJECTED
                 highConfidence -> OpenSetDecisionType.STRONG_POSSIBLE
                 else -> OpenSetDecisionType.POSSIBLE
             }
@@ -68,7 +71,9 @@ object OpenSetDecision {
                 qualityBlock != null -> qualityBlock
                 topIsUnknown -> "The model did not produce a supported species candidate."
                 top.evidenceAccepted != true ->
-                    "No frozen J.1 species crossed its calibrated evidence threshold. The closest score was ${(top.audioConfidence * 100).toInt()}%; ${top.label.replace('_', ' ')} requires ${(requiredConfidence * 100).toInt()}%."
+                    "No frozen J.1 species crossed its calibrated evidence threshold. Raw J.1 score ${(top.audioConfidence * 100).toInt()}; ${top.label.replace('_', ' ')} requires ${(requiredConfidence * 100).toInt()}."
+                !acousticCheck.passed ->
+                    "Frozen J.1 crossed its species threshold, but the measured call has a gross conflict with the specific field-guide acoustic profile: ${acousticCheck.summary}"
                 highConfidence ->
                     "High-confidence evidence band: frozen J.1 crossed this species' calibrated threshold by a wide margin on a good-quality recording. Confirm the call in the field guide before treating it as identified."
                 else ->

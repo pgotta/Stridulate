@@ -3,6 +3,7 @@ package com.pgotta.stridulate.qa
 import android.content.Context
 import android.os.Build
 import com.pgotta.stridulate.audio.MeasuredSignature
+import com.pgotta.stridulate.audio.InsectSignalAssessment
 import com.pgotta.stridulate.audio.PossibleMatchGate
 import com.pgotta.stridulate.audio.RecordingQuality
 import com.pgotta.stridulate.audio.SoundSensitivity
@@ -28,6 +29,7 @@ data class TestFeedbackSnapshot(
     val candidates: List<Candidate>,
     val quality: RecordingQuality? = null,
     val signature: MeasuredSignature? = null,
+    val signalAssessment: InsectSignalAssessment? = null,
     val observationContext: ObservationContext? = null
 )
 
@@ -78,12 +80,13 @@ class TestFeedbackRepository(private val context: Context) {
             else -> JSONObject().put("type", "unspecified")
         }
         val event = JSONObject()
-            .put("schema", 1)
+            .put("schema", 2)
             .put("event_id", "qa-${System.currentTimeMillis()}-${UUID.randomUUID().toString().take(8)}")
             .put("recorded_at_ms", System.currentTimeMillis())
             .put("app_version", appVersionName)
             .put("app_version_code", appVersionCode)
             .put("model", "frozen_j1_perch_2_0")
+            .put("j1_score_meaning", "model score 0..1; not a literal probability of correctness")
             .put("source", snapshot.source)
             .put("verdict", verdict.name.lowercase(Locale.US))
             .put("expected_target", target)
@@ -98,6 +101,7 @@ class TestFeedbackRepository(private val context: Context) {
             .put("possible_match_gate_profile", PossibleMatchGate.profile())
             .put("quality", qualityJson(snapshot.quality))
             .put("acoustic_signature", signatureJson(snapshot.signature))
+            .put("signal_gate", signalGateJson(snapshot.signalAssessment))
             .put("context", contextJson(snapshot.observationContext))
         eventFile.appendText(event.toString() + "\n")
         _count.value = _count.value + 1
@@ -127,7 +131,8 @@ class TestFeedbackRepository(private val context: Context) {
             appendLine("feedback.jsonl is the lossless machine-readable log.")
             appendLine("feedback.csv is a flattened view for spreadsheets.")
             appendLine("Exact GPS coordinates are not exported by this QA logger.")
-            appendLine("The log includes raw Top 3 scores plus the live possible-match gate and acoustic diagnostics so false positives from silence/noise can be analyzed later.")
+            appendLine("J.1 values are model scores, not literal probabilities of correctness.")
+            appendLine("The log includes raw Top 3 J.1 scores plus the class-agnostic raw-audio signal gate, possible-match gate, and acoustic diagnostics so silence/noise false positives can be analyzed later.")
             appendLine("CORRECT/INCORRECT refer to the selected candidate; expected_target records the test target when one was set.")
         }
         ZipOutputStream(zip.outputStream().buffered()).use { out ->
@@ -149,8 +154,11 @@ class TestFeedbackRepository(private val context: Context) {
         .putNullable("common", candidate.species?.common)
         .putNullable("scientific", candidate.species?.latin)
         .put("score", candidate.audioConfidence)
+        .put("score_kind", "j1_model_score_not_probability")
         .putNullable("threshold", candidate.acceptanceThreshold)
         .putNullable("gate_passed", candidate.evidenceAccepted)
+        .putNullable("call_profile_passed", candidate.callCompatibilityPassed)
+        .putNullable("call_profile_summary", candidate.callCompatibilitySummary)
         .put("tier", candidate.reliability.tier.name)
 
     private fun qualityJson(quality: RecordingQuality?): Any = quality?.let {
@@ -176,6 +184,24 @@ class TestFeedbackRepository(private val context: Context) {
             .put("broadband", it.broadband)
     } ?: JSONObject.NULL
 
+
+    private fun signalGateJson(assessment: InsectSignalAssessment?): Any = assessment?.let {
+        JSONObject()
+            .put("passed", it.passed)
+            .put("score", it.score)
+            .put("reason", it.reason)
+            .put("raw_rms", it.rawRms)
+            .put("raw_peak", it.rawPeak)
+            .put("temporal_contrast_db", it.temporalContrastDb)
+            .put("insect_likelihood", it.insectLikelihood)
+            .put("quality_score", it.qualityScore)
+            .put("peak_freq_khz", it.peakFreqKHz)
+            .put("tonality", it.tonality)
+            .put("low_freq_ratio", it.lowFreqRatio)
+            .put("peak_stability", it.peakStability)
+            .put("pulse_regularity", it.pulseRegularity)
+    } ?: JSONObject.NULL
+
     private fun contextJson(context: ObservationContext?): Any = context?.let {
         JSONObject()
             .put("enabled", it.enabled)
@@ -194,6 +220,7 @@ class TestFeedbackRepository(private val context: Context) {
             "top3_label", "top3_score_pct", "top3_threshold_pct", "top3_gate_passed",
             "window_start_seconds", "window_end_seconds", "analysis_gain", "possible_match_gate_level", "possible_match_gate_profile",
             "quality_grade", "quality_score", "insect_likelihood", "peak_freq_khz", "tonality", "low_freq_ratio", "peak_stability",
+            "signal_gate_passed", "signal_gate_score", "signal_gate_reason", "raw_rms", "temporal_contrast_db",
             "region", "temperature_f", "session_key"
         )
         val rows = lines.mapNotNull { line -> runCatching { JSONObject(line) }.getOrNull() }.map { event ->
@@ -206,6 +233,7 @@ class TestFeedbackRepository(private val context: Context) {
             fun passed(c: JSONObject?): String = c?.takeIf { it.has("gate_passed") && !it.isNull("gate_passed") }?.optBoolean("gate_passed")?.toString().orEmpty()
             val q = event.optJSONObject("quality")
             val sig = event.optJSONObject("acoustic_signature")
+            val signalGate = event.optJSONObject("signal_gate")
             val ctx = event.optJSONObject("context")
             val values = mutableListOf(
                 event.optLong("recorded_at_ms").toString(), event.optString("source"), event.optString("verdict"), target,
@@ -231,6 +259,11 @@ class TestFeedbackRepository(private val context: Context) {
             values += sig?.optDouble("tonality")?.toString().orEmpty()
             values += sig?.optDouble("low_freq_ratio")?.toString().orEmpty()
             values += sig?.optDouble("peak_stability")?.toString().orEmpty()
+            values += signalGate?.optBoolean("passed")?.toString().orEmpty()
+            values += signalGate?.optInt("score")?.toString().orEmpty()
+            values += signalGate?.optString("reason").orEmpty()
+            values += signalGate?.optDouble("raw_rms")?.toString().orEmpty()
+            values += signalGate?.optDouble("temporal_contrast_db")?.toString().orEmpty()
             values += ctx?.optString("region").orEmpty()
             values += ctx?.takeIf { it.has("temperature_f") && !it.isNull("temperature_f") }?.optDouble("temperature_f")?.toString().orEmpty()
             values += event.optString("session_key")
