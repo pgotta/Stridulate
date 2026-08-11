@@ -127,6 +127,7 @@ fun StridulateApp(
     val ui by vm.ui.collectAsState()
     val liveDetections by vm.liveDetections.collectAsState()
     val liveCandidates by vm.liveCandidates.collectAsState()
+    val liveLegacyCandidates by vm.liveLegacyCandidates.collectAsState()
     val liveSignalAssessment by vm.liveSignalAssessment.collectAsState()
     val recordingElapsedSeconds by vm.recordingElapsedSeconds.collectAsState()
     val logSessions by vm.logSessions.collectAsState()
@@ -348,6 +349,8 @@ fun StridulateApp(
                     spectrogramColumns = liveColumns.toList(),
                     loudness = loudness,
                     candidates = liveCandidates,
+                    legacyCandidates = liveLegacyCandidates,
+                    legacyComparisonAvailable = vm.legacyComparisonAvailable,
                     signalAssessment = liveSignalAssessment,
                     detections = liveDetections,
                     elapsedSeconds = recordingElapsedSeconds,

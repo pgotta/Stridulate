@@ -15,12 +15,15 @@ import com.pgotta.stridulate.classifier.InsectClassifier
  */
 class ClipAnalyzer(
     private val classifier: InsectClassifier,
-    private val fftSize: Int = 4096
+    private val fftSize: Int = 4096,
+    private val comparisonClassifier: InsectClassifier? = null
 ) {
     data class Result(
         val signature: MeasuredSignature,
         val rawSignature: MeasuredSignature,
         val candidates: List<Candidate>,
+        /** Old pre-v0.3 Stridulate shadow-model ranking. Diagnostic only. */
+        val legacyCandidates: List<Candidate> = emptyList(),
         val spectrogram: List<FloatArray>,
         val quality: RecordingQuality,
         val rawQuality: RecordingQuality,
@@ -87,6 +90,11 @@ class ClipAnalyzer(
                 )
             }
         }
+        // Comparison receives the exact same sensitivity-adjusted PCM as J.1. It is
+        // diagnostic only; failures never block the production J.1 result.
+        val legacyCandidates = comparisonClassifier?.let { legacy ->
+            runCatching { legacy.classify(analysisSamples, sampleRate, signature) }.getOrDefault(emptyList())
+        }.orEmpty()
         val display = if (columns.size > 200) {
             val step = columns.size / 200
             columns.filterIndexed { i, _ -> i % step == 0 }
@@ -96,6 +104,7 @@ class ClipAnalyzer(
             signature = signature,
             rawSignature = rawSignature,
             candidates = candidates,
+            legacyCandidates = legacyCandidates,
             spectrogram = display,
             quality = quality,
             rawQuality = rawQuality,

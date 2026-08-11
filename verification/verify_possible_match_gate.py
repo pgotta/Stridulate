@@ -24,9 +24,10 @@ checks = {
     "signal diagnostics retained for QA": "signalAssessment = result.signalAssessment" in vm and "signal_gate" in repo,
     "signal slider exposed": "title = \"GATE\"" in listen and "STRICT" in listen and "SENS" in listen,
     "gate slider re-filters current window immediately": "setLivePossibleMatchSensitivity" in vm and "filterLiveCandidates(rawTopThree, result, assessment)" in vm,
-    "active heard marker wired to spectrogram": "activeMarkerFraction = if (heardNow)" in listen and "AMBER = HEARD NOW" in listen,
-    "heard candidate highlight exists": "● HEARD NOW" in listen and "cardBackground" in listen,
-    "compact vertical control rails": "VerticalControlRail" in listen and "rotate(-90f)" in listen and "title = \"GATE\"" in listen,
+    "active heard marker wired to spectrogram": "activeMarkerFraction = if (heardNow)" in listen and "● HEARD NOW" in listen,
+    "heard candidate highlight exists": "● HEARD NOW" in listen and "CompactCandidateRow" in listen,
+    "fine vertical control rails": "FineVerticalControl" in listen and "detectDragGestures" in listen and "detectTapGestures" in listen and "title = \"GATE\"" in listen,
+    "gate exposes numeric 0..100 tuning": "possibleMatchSensitivity * 100f" in listen and "VERY STRICT" in gate and "MAX SENSITIVE" in gate,
     "QA collapsed by default": "var expanded by rememberSaveable { mutableStateOf(false) }" in qa,
     "QA can label hidden noise window": "Mark current window as Noise" in qa,
     "normal result hides species on signal reject": "RAW J.1 CANDIDATES HIDDEN FROM NORMAL UI" in result,
@@ -35,4 +36,4 @@ checks = {
 failed = [name for name, ok in checks.items() if not ok]
 if failed:
     raise SystemExit("INSECT FRONT GATE VERIFY FAIL: " + "; ".join(failed))
-print("INSECT FRONT GATE VERIFY PASS: raw silence/noise rejection + recurrence + QA diagnostics + non-probability score UI")
+print("INSECT FRONT GATE VERIFY PASS: raw noise rejection + fine live gate tuning + amber heard-now feedback + QA diagnostics")

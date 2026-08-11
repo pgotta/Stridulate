@@ -30,6 +30,12 @@ jobs:
       - name: Verify beta QA feedback contracts
         run: python verification/verify_qa_feedback.py
 
+      - name: Verify insect gate and live tuning contracts
+        run: python verification/verify_possible_match_gate.py
+
+      - name: Verify dual-model shadow comparison contracts
+        run: python verification/verify_dual_model_comparison.py
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
