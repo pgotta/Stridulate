@@ -54,7 +54,8 @@ fun TestFeedbackPanel(
     onSetNoiseTarget: () -> Unit,
     onClearTarget: () -> Unit,
     onExport: () -> Unit,
-    onClearLog: () -> Unit
+    onClearLog: () -> Unit,
+    onMarkCurrentNoise: () -> Unit = {}
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     var showTargets by remember { mutableStateOf(false) }
@@ -104,6 +105,8 @@ fun TestFeedbackPanel(
                     SmallAction("Export", Biolume) { onExport() }
                     if (feedbackCount > 0) SmallAction("Clear", Danger) { confirmClear = true }
                 }
+                Spacer(Modifier.height(6.dp))
+                SmallAction("Mark current window as Noise", Amber, Modifier.fillMaxWidth()) { onMarkCurrentNoise() }
                 if (targetKey == null) {
                     Spacer(Modifier.height(5.dp))
                     Text("Tip: set a target before marking Incorrect, so the log records what it should have been.", fontFamily = Inter, fontSize = 9.5.sp, color = Mute)

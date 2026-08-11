@@ -62,14 +62,18 @@ fun ResultScreen(
     onClearTestTarget: () -> Unit = {},
     onExportTestFeedback: () -> Unit = {},
     onClearTestFeedback: () -> Unit = {},
+    onMarkCurrentNoise: () -> Unit = {},
     onTestFeedback: (String, FeedbackVerdict) -> Unit = { _, _ -> }
 ) {
     val vm: StridulateViewModel = viewModel()
     val scrollState = rememberScrollState()
     var localGuideId by remember(result) { mutableStateOf<String?>(null) }
-    // The main decision card follows the actual J.1 accepted/decision candidate, while the
-    // Top 3 section below remains score-ranked for discovery even when candidates are below gate.
-    val top = if (result.decision == IdentificationDecision.NO_CONFIDENT_MATCH) {
+    val signalRejected = result.signalAssessment?.passed == false
+    // If the class-agnostic raw-audio gate fails, normal UI must not turn a species-shaped
+    // J.1 score into a pseudo-identification. Raw J.1 candidates remain in the QA export.
+    val top = if (signalRejected) {
+        null
+    } else if (result.decision == IdentificationDecision.NO_CONFIDENT_MATCH) {
         result.candidates.maxByOrNull { it.audioConfidence }
     } else {
         result.allAudioCandidates.firstOrNull { it.label == result.modelTopLabel }
@@ -77,7 +81,7 @@ fun ResultScreen(
             ?: result.candidates.firstOrNull()
     }
     val species = top?.species
-    val percentage = ((top?.audioConfidence ?: result.modelTopConfidence) * 100).roundToInt()
+    val j1Score = ((top?.audioConfidence ?: result.modelTopConfidence) * 100).roundToInt()
     val signature = result.signature
 
     BackHandler(enabled = localGuideId != null) {
@@ -90,10 +94,14 @@ fun ResultScreen(
         IdentificationDecision.POSSIBLE_MATCH -> "Likely match"
         IdentificationDecision.NO_CONFIDENT_MATCH -> "No confident match"
     }
-    val badge = when (result.decision) {
-        IdentificationDecision.IDENTIFIED -> "FROZEN J.1 HIGH-EVIDENCE BAND · CONFIRM THE CALL"
-        IdentificationDecision.POSSIBLE_MATCH -> "J.1 SPECIES THRESHOLD PASSED · CONFIRM THE CALL"
-        IdentificationDecision.NO_CONFIDENT_MATCH -> "NO J.1 SPECIES CROSSED ITS ACCEPTANCE GATE"
+    val badge = if (signalRejected) {
+        "NO INSECT-LIKE SIGNAL DETECTED · RAW J.1 RETAINED FOR QA"
+    } else {
+        when (result.decision) {
+            IdentificationDecision.IDENTIFIED -> "FROZEN J.1 HIGH-EVIDENCE BAND · CONFIRM THE CALL"
+            IdentificationDecision.POSSIBLE_MATCH -> "J.1 SPECIES THRESHOLD PASSED · CONFIRM THE CALL"
+            IdentificationDecision.NO_CONFIDENT_MATCH -> "NO J.1 SPECIES CROSSED ITS ACCEPTANCE GATE"
+        }
     }
 
     Box(Modifier.fillMaxSize().background(Ink)) {
@@ -112,12 +120,12 @@ fun ResultScreen(
 
             Spacer(Modifier.height(8.dp))
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                if (top != null) ConfidenceRing(percentage)
+                if (top != null) ConfidenceRing(j1Score)
                 Text(
-                    if (result.decision == IdentificationDecision.NO_CONFIDENT_MATCH) {
-                        "CLOSEST CALIBRATED SCORE — NOT AN IDENTIFICATION"
-                    } else {
-                        "CALIBRATED J.1 EVIDENCE SCORE — NOT CERTAINTY"
+                    when {
+                        signalRejected -> "RAW J.1 CANDIDATES HIDDEN FROM NORMAL UI"
+                        result.decision == IdentificationDecision.NO_CONFIDENT_MATCH -> "CLOSEST J.1 MODEL SCORE — NOT AN IDENTIFICATION"
+                        else -> "J.1 MODEL SCORE — NOT A PROBABILITY"
                     },
                     color = Mute,
                     fontFamily = JetBrainsMono,
@@ -247,29 +255,36 @@ fun ResultScreen(
                 onSetNoiseTarget = onSetTestTargetNoise,
                 onClearTarget = onClearTestTarget,
                 onExport = onExportTestFeedback,
-                onClearLog = onClearTestFeedback
+                onClearLog = onClearTestFeedback,
+                onMarkCurrentNoise = onMarkCurrentNoise
             )
 
             Spacer(Modifier.height(23.dp))
-            Text("TOP 3 SPECIES MATCHES", color = Amber, fontFamily = JetBrainsMono, fontSize = 11.sp, letterSpacing = 2.sp)
-            Spacer(Modifier.height(5.dp))
-            Text(
-                if (result.contextApplied) {
-                    "Ranked with small region/season/time adjustments. Percentages remain frozen J.1 audio evidence scores, not scientific certainty."
-                } else {
-                    "Score-ranked frozen J.1 possibilities are shown even below their acceptance gates. A gate controls identification wording, not whether a useful candidate is visible."
-                },
-                fontFamily = Inter,
-                fontSize = 11.5.sp,
-                color = Mute,
-                lineHeight = 16.sp
-            )
-            Spacer(Modifier.height(10.dp))
-            result.candidates.take(3).forEachIndexed { index, candidate ->
-                SpeciesMatchRow(index + 1, candidate) { candidate.species?.let { localGuideId = it.id } }
+            if (signalRejected) {
+                Text("RAW J.1 DIAGNOSTICS", color = Amber, fontFamily = JetBrainsMono, fontSize = 11.sp, letterSpacing = 2.sp)
                 Spacer(Modifier.height(5.dp))
-                CandidateFeedbackButtons { verdict -> onTestFeedback(candidate.label, verdict) }
-                Spacer(Modifier.height(8.dp))
+                Text(
+                    "The raw-audio insect-signal gate rejected this clip, so species candidates are intentionally hidden here. Their raw J.1 scores remain in the QA export for debugging.",
+                    fontFamily = Inter, fontSize = 11.5.sp, color = Mute, lineHeight = 16.sp
+                )
+            } else {
+                Text("TOP 3 SPECIES MATCHES", color = Amber, fontFamily = JetBrainsMono, fontSize = 11.sp, letterSpacing = 2.sp)
+                Spacer(Modifier.height(5.dp))
+                Text(
+                    if (result.contextApplied) {
+                        "Ranked with small region/season/time adjustments. Values are frozen J.1 model scores, not literal probabilities."
+                    } else {
+                        "Score-ranked frozen J.1 possibilities are shown only after the raw-audio insect-signal gate. Values are model scores, not literal probabilities."
+                    },
+                    fontFamily = Inter, fontSize = 11.5.sp, color = Mute, lineHeight = 16.sp
+                )
+                Spacer(Modifier.height(10.dp))
+                result.candidates.take(3).forEachIndexed { index, candidate ->
+                    SpeciesMatchRow(index + 1, candidate) { candidate.species?.let { localGuideId = it.id } }
+                    Spacer(Modifier.height(5.dp))
+                    CandidateFeedbackButtons { verdict -> onTestFeedback(candidate.label, verdict) }
+                    Spacer(Modifier.height(8.dp))
+                }
             }
 
             Spacer(Modifier.height(10.dp))
@@ -352,14 +367,22 @@ private fun DecisionCard(result: IdResult) {
         Text(result.decisionReason, color = ParchDim, fontFamily = Inter, fontSize = 13.sp, lineHeight = 19.sp)
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MetricPill("Best audio", "${(result.modelTopConfidence * 100).roundToInt()}%")
-            MetricPill("Required", "${(result.requiredConfidence * 100).roundToInt()}%")
-            MetricPill("Margin", "${(result.modelMargin * 100).roundToInt()}%")
-            MetricPill("Min margin", "${(result.requiredMargin * 100).roundToInt()}%")
+            MetricPill("J.1 score", "${(result.modelTopConfidence * 100).roundToInt()}")
+            MetricPill("J.1 gate", "${(result.requiredConfidence * 100).roundToInt()}")
+            MetricPill("Score lead", "${(result.modelMargin * 100).roundToInt()}")
+            MetricPill("Min lead", "${(result.requiredMargin * 100).roundToInt()}")
+        }
+        result.signalAssessment?.let { signal ->
+            Spacer(Modifier.height(9.dp))
+            Text(
+                "Raw-audio insect gate: ${if (signal.passed) "PASSED" else "REJECTED"} · ${signal.score}/100 — ${signal.reason}",
+                color = if (signal.passed) Mute else Danger,
+                fontFamily = Inter, fontSize = 12.sp, lineHeight = 18.sp
+            )
         }
         Spacer(Modifier.height(9.dp))
         Text(
-            "Acoustic check: ${if (result.acousticCheckPassed) "PASSED" else "REJECTED"} — ${result.acousticCheckSummary}",
+            "Call-profile check: ${if (result.acousticCheckPassed) "PASSED / NOT REQUIRED" else "REJECTED"} — ${result.acousticCheckSummary}",
             color = if (result.acousticCheckPassed) Mute else Danger,
             fontFamily = Inter,
             fontSize = 12.sp,
@@ -539,12 +562,13 @@ private fun SpeciesMatchRow(rank: Int, candidate: Candidate, onClick: () -> Unit
                 }
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text("$percentage%", fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Parch)
+                Text("J.1 $percentage", fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Parch)
                 val thresholdPct = candidate.acceptanceThreshold?.let { (it * 100).roundToInt() }
                 Text(
                     when {
                         candidate.evidenceAccepted == true -> "PASSES J.1 GATE"
-                        thresholdPct != null -> "BELOW GATE · NEEDS $thresholdPct%"
+                        candidate.callCompatibilityPassed == false -> "CALL PROFILE CONFLICT"
+                        thresholdPct != null -> "BELOW J.1 GATE · NEEDS $thresholdPct"
                         else -> "POSSIBLE RESULT"
                     },
                     fontFamily = JetBrainsMono,
@@ -563,11 +587,19 @@ private fun SpeciesMatchRow(rank: Int, candidate: Candidate, onClick: () -> Unit
         candidate.acceptanceThreshold?.let { threshold ->
             Spacer(Modifier.height(7.dp))
             Text(
-                "J.1 gate: ${if (candidate.evidenceAccepted == true) "PASSED" else "NOT PASSED"} · score $percentage% · requires ${(threshold * 100).roundToInt()}%",
+                "J.1 gate: ${if (candidate.evidenceAccepted == true) "PASSED" else "NOT PASSED"} · score $percentage · requires ${(threshold * 100).roundToInt()}",
                 fontFamily = JetBrainsMono,
                 fontSize = 9.5.sp,
                 color = if (candidate.evidenceAccepted == true) Biolume else Amber,
                 lineHeight = 14.sp
+            )
+        }
+        candidate.callCompatibilitySummary?.let { summary ->
+            Spacer(Modifier.height(7.dp))
+            Text(
+                "Call profile: ${if (candidate.callCompatibilityPassed == false) "CONFLICT" else "OK"} — $summary",
+                fontFamily = Inter, fontSize = 10.5.sp,
+                color = if (candidate.callCompatibilityPassed == false) Danger else Mute, lineHeight = 15.sp
             )
         }
         candidate.evidenceSupport?.let { support ->

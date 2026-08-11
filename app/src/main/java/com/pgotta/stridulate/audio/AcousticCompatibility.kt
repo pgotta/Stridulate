@@ -14,6 +14,12 @@ data class AcousticCompatibilityResult(
 )
 
 object AcousticCompatibility {
+    /** Expanded J.1 placeholders intentionally carry broad generic acoustic ranges. */
+    fun hasSpecificProfile(species: Species): Boolean =
+        !species.habitat.startsWith("Species-specific habitat", ignoreCase = true) &&
+            !species.range.startsWith("Species-specific range", ignoreCase = true) &&
+            !species.blurb.contains("placeholder intentionally", ignoreCase = true)
+
     fun assess(species: Species, measured: MeasuredSignature): AcousticCompatibilityResult {
         val conflicts = mutableListOf<String>()
         val range = species.freqRange
