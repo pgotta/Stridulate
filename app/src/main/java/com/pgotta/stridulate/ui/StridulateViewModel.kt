@@ -142,7 +142,7 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun modelLabel(species: Species): String = species.latin.replace(' ', '_')
 
-    /** Field-guide entries supported by the bundled 67-class labels, in label order. */
+    /** Field-guide entries supported by the frozen J.1 88-class label set, in label order. */
     val tier1Species: List<Species> = try {
         val byLatin = repo.species.associateBy { normalizeLatin(it.latin) }
         app.assets.open("labels.txt").bufferedReader().useLines { lines ->
@@ -188,41 +188,39 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
         }
 
         val requiredAssets = listOf(
-            "insect_model.tflite",
+            "j1_labels.txt",
             "labels.txt",
-            "model_meta.json",
-            "normalization.json",
             "android_reliability.json",
-            "audit_manifest.json",
-            "context_profiles.json"
+            "context_profiles.json",
+            "species.json"
         )
         val missing = requiredAssets.filterNot(::assetExists)
         if (missing.isNotEmpty()) {
             ClassifierSetup(
                 classifier = unavailableClassifier,
                 usingTrainedModel = false,
-                status = "Model unavailable · missing ${missing.joinToString()}"
+                status = "App resources unavailable · missing ${missing.joinToString()}"
             )
         } else {
             try {
                 val trained = TfLiteClassifier(app, repo.species)
-                val supportedSpecies = (trained.classCount ?: 1) - 1
+                val supportedSpecies = trained.classCount ?: tier1Species.size
                 ClassifierSetup(
                     classifier = trained,
                     usingTrainedModel = true,
-                    status = "Epoch-19 model active · $supportedSpecies species + unsupported · ${trained.backendName}"
+                    status = "Frozen J.1 model active · $supportedSpecies species · ${trained.backendName}"
                 )
             } catch (e: Exception) {
                 ClassifierSetup(
                     classifier = unavailableClassifier,
                     usingTrainedModel = false,
-                    status = "Model failed · ${(e.message ?: e.javaClass.simpleName).replace(Regex("\\s+"), " ").take(180)}"
+                    status = "Model unavailable · ${(e.message ?: e.javaClass.simpleName).replace(Regex("\\s+"), " ").take(220)}"
                 )
             } catch (e: LinkageError) {
                 ClassifierSetup(
                     classifier = unavailableClassifier,
                     usingTrainedModel = false,
-                    status = "Model unavailable · TensorFlow runtime unavailable"
+                    status = "Model unavailable · ONNX Runtime unavailable"
                 )
             }
         }
@@ -489,7 +487,7 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
                 AudioFileDecoder.decode(getApplication(), uri, maxSeconds = 30.0)
             }
             currentCoroutineContext().ensureActive()
-            _ui.value = UiState.Analyzing("Checking quality and reading the 44.1 kHz mel spectrogram…")
+            _ui.value = UiState.Analyzing("Checking quality and running frozen J.1 / Perch 2.0…")
             val res = withContext(Dispatchers.Default) {
                 clipAnalyzer.analyze(decoded.samples, decoded.sampleRate)
             }

@@ -27,20 +27,16 @@ import kotlin.math.sin
 
 /**
  * Compatibility entry point retained so the existing ViewModel does not need a
- * migration. Despite the historical class name, v3 runs the frozen Stage J.1
+ * migration. Despite the historical class name, v0.3 runs the frozen Stage J.1
  * Perch 2.0 + Stage-D affine/calibration path through ONNX Runtime.
  *
- * Runtime files are intentionally not committed or packed into the APK. The v3
- * build/install helper verifies and stages Perch, the affine head and calibration
- * into files/models without clearing app data.
+ * Normal repository builds may stage the three frozen runtime files externally.
+ * Standalone Android Studio packages may bundle the exact same verified files under
+ * assets/runtime; when present they are copied once into files/models on first launch.
  */
 class TfLiteClassifier(
     context: Context,
     species: List<Species>,
-    @Suppress("UNUSED_PARAMETER") modelAsset: String = "insect_model.tflite",
-    @Suppress("UNUSED_PARAMETER") labelsAsset: String = "labels.txt",
-    @Suppress("UNUSED_PARAMETER") metadataAsset: String = "model_meta.json",
-    @Suppress("UNUSED_PARAMETER") normalizationAsset: String = "normalization.json",
     reliabilityAsset: String = "android_reliability.json"
 ) : InsectClassifier {
 
@@ -49,16 +45,29 @@ class TfLiteClassifier(
     private val labels = app.assets.open(LABELS_ASSET).bufferedReader().useLines { lines ->
         lines.map(String::trim).filter(String::isNotBlank).toList()
     }
-    private val calibration = J1Calibration.load(File(app.filesDir, CALIBRATION_RELATIVE_PATH), labels)
-    private val affine = J1Affine.load(File(app.filesDir, AFFINE_RELATIVE_PATH), labels.size)
+    private val calibrationFile = ensureRuntimeFile(
+        CALIBRATION_RELATIVE_PATH, CALIBRATION_BUNDLED_ASSET, CALIBRATION_BYTES, CALIBRATION_SHA256
+    )
+    private val affineFile = ensureRuntimeFile(
+        AFFINE_RELATIVE_PATH, AFFINE_BUNDLED_ASSET, AFFINE_BYTES, AFFINE_SHA256
+    )
+    private val modelSourceAvailable = runtimeSourceAvailable(
+        MODEL_RELATIVE_PATH, MODEL_BUNDLED_ASSET, PERCH_BYTES
+    )
+    private val calibration = J1Calibration.load(calibrationFile, labels)
+    private val affine = J1Affine.load(affineFile, labels.size)
     private val reliabilityRepository = SpeciesReliabilityRepository(app, reliabilityAsset)
     private val speciesByLatin = species.associateBy { normalizeLatin(it.latin) }
     private val reliabilityByLabel = labels.associateWith(::j1Reliability)
 
     private val env = OrtEnvironment.getEnvironment("Stridulate-J1")
-    private val session: OrtSession
-    private val inputName: String
-    private val globalOutputName: String
+    private data class SessionBundle(
+        val session: OrtSession,
+        val inputName: String,
+        val globalOutputName: String
+    )
+    @Volatile private var sessionBundle: SessionBundle? = null
+    private val sessionLock = Any()
 
     override val policy = ClassificationPolicy(
         unknownLabel = "Unknown_or_unsupported",
@@ -91,44 +100,11 @@ class TfLiteClassifier(
                 "No field-guide entry exists for frozen J.1 label $label."
             }
         }
-        val model = File(app.filesDir, MODEL_RELATIVE_PATH)
-        verifyPerchModel(model)
-        try {
-            val opened = executor.submit<Triple<OrtSession, String, String>> {
-                val options = OrtSession.SessionOptions()
-                try {
-                    val s = env.createSession(model.absolutePath, options)
-                    val input = s.inputNames.singleOrNull()
-                        ?: throw IllegalStateException("Perch must expose exactly one input.")
-                    val inputInfo = s.inputInfo[input]?.info as? TensorInfo
-                        ?: throw IllegalStateException("Perch input is not a float tensor.")
-                    val inputShape = inputInfo.shape
-                    require(inputShape.size == 2 && inputShape.last() == WINDOW_SAMPLES.toLong()) {
-                        "Unexpected Perch input shape: ${inputShape.toList()}"
-                    }
-                    val global = s.outputInfo.entries.filter { (_, node) ->
-                        val info = node.info as? TensorInfo ?: return@filter false
-                        info.shape.filter { it > 0 }.fold(1L) { a, b -> a * b } == EMBEDDING_DIM.toLong()
-                    }.map { it.key }
-                    require(global.size == 1) {
-                        "Could not identify unique 1536-value Perch global embedding output."
-                    }
-                    Triple(s, input, global.single())
-                } finally {
-                    options.close()
-                }
-            }.get()
-            session = opened.first
-            inputName = opened.second
-            globalOutputName = opened.third
-        } catch (e: ExecutionException) {
-            executor.shutdownNow()
-            val cause = e.cause ?: e
-            throw IllegalStateException(cause.message ?: cause.javaClass.simpleName, cause)
-        } catch (e: Throwable) {
-            executor.shutdownNow()
-            throw IllegalStateException(e.message ?: e.javaClass.simpleName, e)
+        require(modelSourceAvailable) {
+            "Frozen J.1 Perch model is unavailable. Build the self-contained Android Studio package once so the verified model is downloaded into the APK."
         }
+        // The 413 MB Perch model is intentionally not copied or opened here.
+        // Session creation is deferred until the first analysis, which already runs off the UI thread.
     }
 
     override fun classify(signature: MeasuredSignature): List<Candidate> = emptyList()
@@ -217,12 +193,13 @@ class TfLiteClassifier(
 
     private fun runPerch(window: FloatArray): FloatArray {
         require(window.size == WINDOW_SAMPLES)
+        val active = getOrCreateSession()
         val bytes = ByteBuffer.allocateDirect(WINDOW_SAMPLES * Float.SIZE_BYTES).order(ByteOrder.nativeOrder())
         val floats = bytes.asFloatBuffer()
         floats.put(window)
         floats.rewind()
         OnnxTensor.createTensor(env, floats, longArrayOf(1L, WINDOW_SAMPLES.toLong())).use { input ->
-            session.run(mapOf(inputName to input), setOf(globalOutputName)).use { result ->
+            active.session.run(mapOf(active.inputName to input), setOf(active.globalOutputName)).use { result ->
                 val value = result.iterator().next().value as? OnnxTensor
                     ?: throw IllegalStateException("Perch global output is not a tensor.")
                 val buffer = value.floatBuffer
@@ -297,15 +274,115 @@ class TfLiteClassifier(
         } else prior.copy(primaryResultAllowed = true)
     }
 
-    private fun verifyPerchModel(model: File) {
-        require(model.isFile) {
-            "Frozen J.1 Perch model is not installed. Run RUN_BUILD_AND_INSTALL_FINAL_ANDROID.bat to stage it without clearing app data."
+    private fun getOrCreateSession(): SessionBundle {
+        sessionBundle?.let { return it }
+        synchronized(sessionLock) {
+            sessionBundle?.let { return it }
+            val model = ensureRuntimeFile(
+                MODEL_RELATIVE_PATH, MODEL_BUNDLED_ASSET, PERCH_BYTES, PERCH_SHA256
+            )
+            val options = OrtSession.SessionOptions()
+            try {
+                val opened = env.createSession(model.absolutePath, options)
+                val input = opened.inputNames.singleOrNull()
+                    ?: throw IllegalStateException("Perch must expose exactly one input.")
+                val inputInfo = opened.inputInfo[input]?.info as? TensorInfo
+                    ?: throw IllegalStateException("Perch input is not a float tensor.")
+                val inputShape = inputInfo.shape
+                require(inputShape.size == 2 && inputShape.last() == WINDOW_SAMPLES.toLong()) {
+                    "Unexpected Perch input shape: ${inputShape.toList()}"
+                }
+                val global = opened.outputInfo.entries.filter { (_, node) ->
+                    val info = node.info as? TensorInfo ?: return@filter false
+                    info.shape.filter { it > 0 }.fold(1L) { a, b -> a * b } == EMBEDDING_DIM.toLong()
+                }.map { it.key }
+                require(global.size == 1) {
+                    "Could not identify unique 1536-value Perch global embedding output."
+                }
+                return SessionBundle(opened, input, global.single()).also { sessionBundle = it }
+            } catch (t: Throwable) {
+                throw IllegalStateException(t.message ?: t.javaClass.simpleName, t)
+            } finally {
+                options.close()
+            }
         }
-        require(model.length() == PERCH_BYTES) {
-            "Perch model size mismatch: ${model.length()} bytes; expected $PERCH_BYTES."
+    }
+
+    private fun runtimeSourceAvailable(
+        relativePath: String,
+        bundledAsset: String,
+        expectedBytes: Long
+    ): Boolean {
+        val target = File(app.filesDir, relativePath)
+        if (target.isFile && target.length() == expectedBytes) return true
+        return try {
+            app.assets.open(bundledAsset).use { true }
+        } catch (_: Exception) {
+            false
         }
+    }
+
+    private fun ensureRuntimeFile(
+        relativePath: String,
+        bundledAsset: String,
+        expectedBytes: Long,
+        expectedSha256: String
+    ): File {
+        val target = File(app.filesDir, relativePath)
+        if (target.isFile && target.length() == expectedBytes && fileSha256(target) == expectedSha256) {
+            return target
+        }
+
+        val bundled = try { app.assets.open(bundledAsset) } catch (_: Exception) { null }
+        if (bundled == null) {
+            val detail = if (target.exists()) "installed file is invalid" else "runtime file is not installed"
+            throw IllegalStateException(
+                "Frozen J.1 $detail: ${target.name}. Use the self-contained Android Studio package or stage the verified runtime files."
+            )
+        }
+
+        target.parentFile?.mkdirs()
+        val temp = File(target.parentFile, target.name + ".installing")
+        runCatching { temp.delete() }
         val digest = MessageDigest.getInstance("SHA-256")
-        model.inputStream().buffered(1024 * 1024).use { input ->
+        var copied = 0L
+        try {
+            bundled.use { input ->
+                temp.outputStream().buffered(1024 * 1024).use { output ->
+                    val buffer = ByteArray(1024 * 1024)
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count <= 0) break
+                        output.write(buffer, 0, count)
+                        digest.update(buffer, 0, count)
+                        copied += count
+                    }
+                }
+            }
+            val sha = digest.digest().joinToString("") { "%02x".format(it) }
+            require(copied == expectedBytes) {
+                "Bundled frozen J.1 ${target.name} has $copied bytes; expected $expectedBytes."
+            }
+            require(sha.equals(expectedSha256, ignoreCase = true)) {
+                "Bundled frozen J.1 ${target.name} checksum mismatch; refusing inference."
+            }
+            if (target.exists() && !target.delete()) {
+                throw IllegalStateException("Could not replace invalid frozen J.1 runtime ${target.name}.")
+            }
+            if (!temp.renameTo(target)) {
+                temp.copyTo(target, overwrite = true)
+                temp.delete()
+            }
+            return target
+        } catch (t: Throwable) {
+            temp.delete()
+            throw t
+        }
+    }
+
+    private fun fileSha256(file: File): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        file.inputStream().buffered(1024 * 1024).use { input ->
             val buffer = ByteArray(1024 * 1024)
             while (true) {
                 val count = input.read(buffer)
@@ -313,14 +390,16 @@ class TfLiteClassifier(
                 digest.update(buffer, 0, count)
             }
         }
-        val sha = digest.digest().joinToString("") { "%02x".format(it) }
-        require(sha.equals(PERCH_SHA256, ignoreCase = true)) { "Perch model SHA-256 mismatch; refusing inference." }
+        return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
     override fun close() {
-        try { executor.submit { session.close() }.get() }
+        try { executor.submit { sessionBundle?.session?.close() }.get() }
         catch (_: Throwable) { }
-        finally { executor.shutdownNow() }
+        finally {
+            sessionBundle = null
+            executor.shutdownNow()
+        }
     }
 
     private fun normalizeLatin(value: String): String =
@@ -360,7 +439,7 @@ class TfLiteClassifier(
 
         companion object {
             fun load(file: File, labels: List<String>): J1Calibration {
-                require(file.isFile) { "Frozen J.1 calibration is missing. Run the v3 build/install helper." }
+                require(file.isFile) { "Frozen J.1 calibration is missing from verified runtime storage." }
                 val bytes = file.readBytes()
                 val digest = MessageDigest.getInstance("SHA-256").digest(bytes)
                     .joinToString("") { "%02x".format(it) }
@@ -414,7 +493,7 @@ class TfLiteClassifier(
         companion object {
             fun load(file: File, classes: Int): J1Affine {
                 require(file.isFile && file.length() == AFFINE_BYTES) {
-                    "Frozen J.1 affine head is missing or has the wrong size. Run the v3 build/install helper."
+                    "Frozen J.1 affine head is missing or has the wrong size in verified runtime storage."
                 }
                 val bytes = file.readBytes()
                 val digest = MessageDigest.getInstance("SHA-256").digest(bytes)
@@ -445,11 +524,15 @@ class TfLiteClassifier(
         private const val WINDOW_HOP_SAMPLES = 80000
         private const val LABELS_ASSET = "j1_labels.txt"
         private const val CALIBRATION_RELATIVE_PATH = "models/j1_calibration.json"
+        private const val CALIBRATION_BUNDLED_ASSET = "runtime/j1_calibration.json"
+        private const val CALIBRATION_BYTES = 34189L
         private const val CALIBRATION_SHA256 = "fddecaabe0e39ebdb98eac5e804b2f77a5c9f9f25afd4510b5c740cd83e2d7f9"
         private const val AFFINE_RELATIVE_PATH = "models/j1_stage_d_affine.bin"
+        private const val AFFINE_BUNDLED_ASSET = "runtime/j1_stage_d_affine.bin"
         private const val AFFINE_BYTES = 541040L
         private const val AFFINE_SHA256 = "066c6cf64b165abb83af93e4b1a38a4a3ffce2fa9ec476a5b3b9695466a6d76a"
         private const val MODEL_RELATIVE_PATH = "models/perch_v2_no_dft.onnx"
+        private const val MODEL_BUNDLED_ASSET = "runtime/perch_v2_no_dft.onnx"
         private const val PERCH_BYTES = 413350933L
         private const val PERCH_SHA256 = "4dcf71c18a147198545944bb5149697e89e3ad2e16637fa8f0edf6d13035a017"
 
