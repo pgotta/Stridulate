@@ -17,6 +17,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.head_ref }}
           show-progress: false
 
       - name: Materialize HEARD NOW scrolling marker fix on verification branch
