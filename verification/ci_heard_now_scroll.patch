@@ -1,0 +1,69 @@
+--- a/app/src/main/java/com/pgotta/stridulate/ui/screens/ListenScreen.kt
++++ b/app/src/main/java/com/pgotta/stridulate/ui/screens/ListenScreen.kt
+@@ -27,7 +27,9 @@
+ import androidx.compose.foundation.shape.RoundedCornerShape
+ import androidx.compose.material3.Text
+ import androidx.compose.runtime.Composable
++import androidx.compose.runtime.LaunchedEffect
+ import androidx.compose.runtime.getValue
++import androidx.compose.runtime.mutableStateListOf
+ import androidx.compose.runtime.mutableStateOf
+ import androidx.compose.runtime.remember
+ import androidx.compose.runtime.setValue
+@@ -115,12 +117,44 @@
+     val secondsPerColumn = 4096.0 / 48_000.0
+     val visibleSpan = (spectrogramColumns.size * secondsPerColumn).coerceAtLeast(0.1)
+     val visibleStart = (elapsedSeconds - visibleSpan).coerceAtLeast(0.0)
+-    val markerFractions = detections.flatMap { it.occurrences }
+-        .filter { it.endSeconds >= visibleStart }
+-        .map { ((it.endSeconds - visibleStart) / visibleSpan).toFloat().coerceIn(0f, 1f) }
+     val acceptedWindows = detections.sumOf { it.occurrences.size }
+     val heardNow = signalAssessment?.passed == true && (candidates.isNotEmpty() || legacyCandidates.isNotEmpty())
+ 
++    // HEARD NOW markers are visual timeline markers, separate from accepted/logged
++    // detections. Each fresh qualifying analysis drops a marker at the live edge.
++    // Once placed, that timestamp remains fixed while the spectrogram window scrolls,
++    // so the marker travels left with the sound instead of being pinned to the edge.
++    val heardMarkerTimes = remember { mutableStateListOf<Double>() }
++    LaunchedEffect(signalAssessment, candidates, legacyCandidates) {
++        if (heardNow) {
++            val markerTime = elapsedSeconds
++            val previous = heardMarkerTimes.lastOrNull()
++            // Slider re-evaluation can emit another state for the same cached window.
++            // Avoid creating duplicate lines for those near-simultaneous updates.
++            if (previous == null || markerTime - previous >= 1.0) {
++                heardMarkerTimes.add(markerTime)
++                while (heardMarkerTimes.size > 100) heardMarkerTimes.removeAt(0)
++            }
++        }
++    }
++
++    val activeMarkerTime = heardMarkerTimes.lastOrNull()?.takeIf { heardNow }
++    val historicalHeardTimes = if (activeMarkerTime != null && heardMarkerTimes.isNotEmpty()) {
++        heardMarkerTimes.dropLast(1)
++    } else {
++        heardMarkerTimes.toList()
++    }
++    val markerFractions = (
++        detections.flatMap { detection -> detection.occurrences.map { it.endSeconds } } +
++            historicalHeardTimes
++        )
++        .distinct()
++        .filter { it >= visibleStart }
++        .map { ((it - visibleStart) / visibleSpan).toFloat().coerceIn(0f, 1f) }
++    val activeMarkerFraction = activeMarkerTime
++        ?.takeIf { it >= visibleStart }
++        ?.let { ((it - visibleStart) / visibleSpan).toFloat().coerceIn(0f, 1f) }
++
+     Column(Modifier.fillMaxSize().padding(horizontal = 14.dp)) {
+         AppBarRow(
+             title = "Listening",
+@@ -165,7 +199,7 @@
+                     columns = spectrogramColumns,
+                     modifier = Modifier.fillMaxSize(),
+                     markerFractions = markerFractions,
+-                    activeMarkerFraction = if (heardNow) 0.987f else null
++                    activeMarkerFraction = if (heardNow) activeMarkerFraction else null
+                 )
+                 Text(
+                     when {
