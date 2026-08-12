@@ -1,0 +1,170 @@
+--- a/app/src/main/java/com/pgotta/stridulate/ui/StridulateViewModel.kt
++++ b/app/src/main/java/com/pgotta/stridulate/ui/StridulateViewModel.kt
+@@ -277,7 +277,14 @@
+     val liveLegacyCandidates: StateFlow<List<Candidate>> = _liveLegacyCandidates
+     private val _liveSignalAssessment = MutableStateFlow<InsectSignalAssessment?>(null)
+     val liveSignalAssessment: StateFlow<InsectSignalAssessment?> = _liveSignalAssessment
++    private val _liveHeardNow = MutableStateFlow(false)
++    val liveHeardNow: StateFlow<Boolean> = _liveHeardNow
++    private val _liveFeedbackAck = MutableStateFlow<String?>(null)
++    val liveFeedbackAck: StateFlow<String?> = _liveFeedbackAck
+     private var lastLiveFeedbackSnapshot: TestFeedbackSnapshot? = null
++    private var pendingLiveFeedbackSnapshot: TestFeedbackSnapshot? = null
++    private var reviewedLiveTopLabel: String? = null
++    private var liveFeedbackAckJob: Job? = null
+     private val liveCandidateStreaks = mutableMapOf<String, Int>()
+     private var previousRawLiveLabels: Set<String> = emptySet()
+     private var lastLiveAnalysisResult: ClipAnalyzer.Result? = null
+@@ -377,8 +384,28 @@
+     }
+ 
+     fun recordLiveTestFeedback(candidateLabel: String, verdict: FeedbackVerdict) {
+-        val snapshot = lastLiveFeedbackSnapshot ?: return
++        val snapshot = pendingLiveFeedbackSnapshot ?: lastLiveFeedbackSnapshot ?: return
+         testFeedbackRepository.record(verdict, candidateLabel, snapshot)
++
++        // A visible live result is a review card, not an ephemeral current-window label.
++        // Once the tester judges it, clear that card and suppress the same continuous
++        // top label until the acoustic event ends or a different top label appears.
++        reviewedLiveTopLabel = candidateLabel
++        pendingLiveFeedbackSnapshot = null
++        _liveCandidates.value = emptyList()
++        _liveLegacyCandidates.value = emptyList()
++
++        val acknowledgement = when (verdict) {
++            FeedbackVerdict.CORRECT -> "✓ Correct saved"
++            FeedbackVerdict.INCORRECT -> "✕ Incorrect saved"
++            FeedbackVerdict.NOISE -> "Noise saved"
++        }
++        _liveFeedbackAck.value = acknowledgement
++        liveFeedbackAckJob?.cancel()
++        liveFeedbackAckJob = viewModelScope.launch {
++            delay(1400L)
++            if (_liveFeedbackAck.value == acknowledgement) _liveFeedbackAck.value = null
++        }
+     }
+ 
+     fun recordCurrentLiveWindowAsNoise() {
+@@ -416,6 +443,39 @@
+         testFeedbackRepository.record(FeedbackVerdict.NOISE, null, snapshot)
+     }
+ 
++    private fun updateLiveHeardState(
++        freshCandidates: List<Candidate>,
++        freshLegacyCandidates: List<Candidate>,
++        assessment: InsectSignalAssessment
++    ) {
++        _liveHeardNow.value = assessment.passed &&
++            (freshCandidates.isNotEmpty() || freshLegacyCandidates.isNotEmpty())
++
++        val freshTopLabel = freshCandidates.firstOrNull()?.label
++        if (!assessment.passed) {
++            reviewedLiveTopLabel = null
++        } else if (freshTopLabel != null && reviewedLiveTopLabel != null && reviewedLiveTopLabel != freshTopLabel) {
++            reviewedLiveTopLabel = null
++        }
++    }
++
++    private fun latchLiveReviewIfAvailable(
++        freshCandidates: List<Candidate>,
++        freshLegacyCandidates: List<Candidate>,
++        snapshot: TestFeedbackSnapshot?
++    ) {
++        if (pendingLiveFeedbackSnapshot != null) return
++        if (_liveCandidates.value.isNotEmpty() || _liveLegacyCandidates.value.isNotEmpty()) return
++
++        val top = freshCandidates.firstOrNull() ?: return
++        if (top.label == reviewedLiveTopLabel) return
++
++        val frozenSnapshot = snapshot ?: return
++        _liveCandidates.value = freshCandidates
++        _liveLegacyCandidates.value = freshLegacyCandidates
++        pendingLiveFeedbackSnapshot = frozenSnapshot
++    }
++
+     /**
+      * Re-evaluate only the cheap raw-audio/display gates for the most recent live window.
+      * Frozen Perch/J.1 inference is intentionally not rerun while the user drags the gate.
+@@ -440,8 +500,13 @@
+             // A fresh rolling window wins over a stale slider refresh.
+             if (lastLiveRawPcm !== rawPcm || lastLiveAnalysisResult !== result) return@launch
+             _liveSignalAssessment.value = assessment
+-            _liveCandidates.value = filterLiveCandidates(rawTopThree, result, assessment)
+-            _liveLegacyCandidates.value = if (assessment.passed) lastLiveRawLegacyTopThree else emptyList()
++            val freshCandidates = filterLiveCandidates(rawTopThree, result, assessment)
++            val freshLegacyCandidates = if (assessment.passed) lastLiveRawLegacyTopThree else emptyList()
++            updateLiveHeardState(freshCandidates, freshLegacyCandidates, assessment)
++
++            val refreshedSnapshot = lastLiveFeedbackSnapshot?.copy(signalAssessment = assessment)
++            if (refreshedSnapshot != null) lastLiveFeedbackSnapshot = refreshedSnapshot
++            latchLiveReviewIfAvailable(freshCandidates, freshLegacyCandidates, refreshedSnapshot)
+         }
+     }
+ 
+@@ -478,7 +543,13 @@
+         _liveCandidates.value = emptyList()
+         _liveLegacyCandidates.value = emptyList()
+         _liveSignalAssessment.value = null
++        _liveHeardNow.value = false
++        _liveFeedbackAck.value = null
+         lastLiveFeedbackSnapshot = null
++        pendingLiveFeedbackSnapshot = null
++        reviewedLiveTopLabel = null
++        liveFeedbackAckJob?.cancel()
++        liveFeedbackAckJob = null
+         liveCandidateStreaks.clear()
+         previousRawLiveLabels = emptySet()
+         lastLiveAnalysisResult = null
+@@ -551,11 +622,12 @@
+         liveCandidateStreaks.keys.retainAll(rawLabels)
+         previousRawLiveLabels = rawLabels
+ 
+-        _liveCandidates.value = filterLiveCandidates(rawTopThree, result, result.signalAssessment)
+-        _liveLegacyCandidates.value = if (result.signalAssessment.passed) rawLegacyTopThree else emptyList()
++        val freshCandidates = filterLiveCandidates(rawTopThree, result, result.signalAssessment)
++        val freshLegacyCandidates = if (result.signalAssessment.passed) rawLegacyTopThree else emptyList()
++        updateLiveHeardState(freshCandidates, freshLegacyCandidates, result.signalAssessment)
+ 
+         val feedbackNow = _recordingElapsedSeconds.value
+-        lastLiveFeedbackSnapshot = TestFeedbackSnapshot(
++        val feedbackSnapshot = TestFeedbackSnapshot(
+             source = "live",
+             sessionKey = recordingStartedAtMillis.toString(),
+             windowStartSeconds = (feedbackNow - LIVE_WINDOW_SECONDS).coerceAtLeast(0.0),
+@@ -567,6 +639,8 @@
+             signalAssessment = result.signalAssessment,
+             observationContext = environment.value
+         )
++        lastLiveFeedbackSnapshot = feedbackSnapshot
++        latchLiveReviewIfAvailable(freshCandidates, freshLegacyCandidates, feedbackSnapshot)
+ 
+         // Decision/logging view: the raw-audio signal gate is mandatory. J.1 can still be
+         // calculated and exported for QA on rejected noise windows, but no accepted/logged call
+@@ -649,7 +723,13 @@
+             _liveCandidates.value = emptyList()
+             _liveLegacyCandidates.value = emptyList()
+             _liveSignalAssessment.value = null
++            _liveHeardNow.value = false
++            _liveFeedbackAck.value = null
+             lastLiveFeedbackSnapshot = null
++            pendingLiveFeedbackSnapshot = null
++            reviewedLiveTopLabel = null
++            liveFeedbackAckJob?.cancel()
++            liveFeedbackAckJob = null
+             liveCandidateStreaks.clear()
+             previousRawLiveLabels = emptySet()
+             lastLiveAnalysisResult = null
+@@ -674,7 +754,13 @@
+         _liveCandidates.value = emptyList()
+         _liveLegacyCandidates.value = emptyList()
+         _liveSignalAssessment.value = null
++        _liveHeardNow.value = false
++        _liveFeedbackAck.value = null
+         lastLiveFeedbackSnapshot = null
++        pendingLiveFeedbackSnapshot = null
++        reviewedLiveTopLabel = null
++        liveFeedbackAckJob?.cancel()
++        liveFeedbackAckJob = null
+         liveCandidateStreaks.clear()
+         previousRawLiveLabels = emptySet()
+         lastLiveAnalysisResult = null
