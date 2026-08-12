@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   verify-and-build:
@@ -19,8 +19,25 @@ jobs:
         with:
           show-progress: false
 
-      - name: Apply HEARD NOW scrolling marker fix for exact-source CI
-        run: patch -p1 < verification/ci_heard_now_scroll.patch
+      - name: Materialize HEARD NOW scrolling marker fix on verification branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git apply --check verification/ci_heard_now_scroll.patch; then
+            git apply verification/ci_heard_now_scroll.patch
+          elif git apply --reverse --check verification/ci_heard_now_scroll.patch; then
+            echo "HEARD NOW scrolling marker fix is already materialized."
+          else
+            echo "Patch is neither cleanly applicable nor already applied."
+            exit 1
+          fi
+          if ! git diff --quiet -- app/src/main/java/com/pgotta/stridulate/ui/screens/ListenScreen.kt; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add app/src/main/java/com/pgotta/stridulate/ui/screens/ListenScreen.kt
+            git commit -m "Fix HEARD NOW marker scrolling with spectrogram"
+            git push origin "HEAD:${{ github.head_ref }}"
+          fi
 
       - name: Set up Python
         uses: actions/setup-python@v5
