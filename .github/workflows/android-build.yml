@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   verify-and-build:
@@ -17,51 +17,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
           show-progress: false
-
-      - name: Materialize persistent live review changes
-        shell: bash
-        run: |
-          set -euo pipefail
-          for patch_file in \
-            verification/ci_live_review_vm.patch \
-            verification/ci_live_review_main.patch \
-            verification/ci_live_review_listen.patch \
-            verification/ci_live_review_build.patch \
-            verification/ci_live_review_verfinal.patch \
-            verification/ci_live_review_vernew.patch
-          do
-            if git apply --check "$patch_file"; then
-              git apply "$patch_file"
-            elif git apply --reverse --check "$patch_file"; then
-              echo "$patch_file already materialized"
-            else
-              echo "$patch_file is neither applicable nor already applied"
-              exit 1
-            fi
-          done
-
-          if ! git diff --quiet -- \
-            app/src/main/java/com/pgotta/stridulate/ui/StridulateViewModel.kt \
-            app/src/main/java/com/pgotta/stridulate/MainActivity.kt \
-            app/src/main/java/com/pgotta/stridulate/ui/screens/ListenScreen.kt \
-            app/build.gradle.kts \
-            verification/verify_final_j_android.py \
-            verification/verify_live_review_latch.py
-          then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add \
-              app/src/main/java/com/pgotta/stridulate/ui/StridulateViewModel.kt \
-              app/src/main/java/com/pgotta/stridulate/MainActivity.kt \
-              app/src/main/java/com/pgotta/stridulate/ui/screens/ListenScreen.kt \
-              app/build.gradle.kts \
-              verification/verify_final_j_android.py \
-              verification/verify_live_review_latch.py
-            git commit -m "Keep live insect result until QA verdict"
-            git push origin "HEAD:${{ github.head_ref }}"
-          fi
 
       - name: Set up Python
         uses: actions/setup-python@v5
