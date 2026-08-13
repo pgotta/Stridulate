@@ -1,0 +1,407 @@
+--- a/app/src/main/java/com/pgotta/stridulate/qa/TestFeedbackRepository.kt
++++ b/app/src/main/java/com/pgotta/stridulate/qa/TestFeedbackRepository.kt
+@@ -21,6 +21,25 @@
+ 
+ enum class FeedbackVerdict { CORRECT, INCORRECT, NOISE }
+ 
++
++data class QaSpeciesProgress(
++    val targetKey: String,
++    val total: Int,
++    val correct: Int,
++    val incorrect: Int,
++    val noise: Int
++)
++
++data class QaProgressSnapshot(
++    val totalFeedback: Int,
++    val correct: Int,
++    val incorrect: Int,
++    val noise: Int,
++    val noiseTargetTests: Int,
++    val exploratoryTests: Int,
++    val byTarget: Map<String, QaSpeciesProgress>
++)
++
+ data class TestFeedbackSnapshot(
+     val source: String,
+     val sessionKey: String? = null,
+@@ -120,6 +139,66 @@
+     }
+ 
+     @Synchronized
++    fun progressSnapshot(): QaProgressSnapshot {
++        val lines = if (eventFile.exists()) eventFile.readLines().filter(String::isNotBlank) else emptyList()
++        var correct = 0
++        var incorrect = 0
++        var noise = 0
++        var noiseTargetTests = 0
++        var exploratoryTests = 0
++        val speciesCounters = linkedMapOf<String, IntArray>()
++
++        lines.forEach { line ->
++            val event = runCatching { JSONObject(line) }.getOrNull() ?: return@forEach
++            when (event.optString("verdict")) {
++                "correct" -> correct += 1
++                "incorrect" -> incorrect += 1
++                "noise" -> noise += 1
++            }
++
++            val target = event.optJSONObject("expected_target")
++            val type = target?.optString("type").orEmpty()
++            val label = target?.optString("label").orEmpty()
++            when (type) {
++                "species", "species_inferred_from_correct_tap" -> {
++                    if (label.isBlank()) {
++                        exploratoryTests += 1
++                    } else {
++                        val counts = speciesCounters.getOrPut(label) { IntArray(4) }
++                        counts[0] += 1
++                        when (event.optString("verdict")) {
++                            "correct" -> counts[1] += 1
++                            "incorrect" -> counts[2] += 1
++                            "noise" -> counts[3] += 1
++                        }
++                    }
++                }
++                "noise" -> noiseTargetTests += 1
++                else -> exploratoryTests += 1
++            }
++        }
++
++        val byTarget = speciesCounters.mapValues { (label, c) ->
++            QaSpeciesProgress(
++                targetKey = label,
++                total = c[0],
++                correct = c[1],
++                incorrect = c[2],
++                noise = c[3]
++            )
++        }
++        return QaProgressSnapshot(
++            totalFeedback = lines.size,
++            correct = correct,
++            incorrect = incorrect,
++            noise = noise,
++            noiseTargetTests = noiseTargetTests,
++            exploratoryTests = exploratoryTests,
++            byTarget = byTarget
++        )
++    }
++
++    @Synchronized
+     fun exportBundle(): File {
+         val exportDir = File(context.cacheDir, "test_feedback_exports").apply { mkdirs() }
+         exportDir.listFiles()?.filter { it.name.startsWith("stridulate-test-feedback-") }?.forEach { it.delete() }
+--- a/app/src/main/java/com/pgotta/stridulate/ui/components/TestFeedbackControls.kt
++++ b/app/src/main/java/com/pgotta/stridulate/ui/components/TestFeedbackControls.kt
+@@ -26,12 +26,14 @@
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.graphics.Color
++import androidx.compose.ui.platform.LocalContext
+ import androidx.compose.ui.text.font.FontWeight
+ import androidx.compose.ui.text.style.TextOverflow
+ import androidx.compose.ui.unit.dp
+ import androidx.compose.ui.unit.sp
+ import com.pgotta.stridulate.data.Species
+ import com.pgotta.stridulate.qa.FeedbackVerdict
++import com.pgotta.stridulate.qa.QaSpeciesProgress
+ import com.pgotta.stridulate.qa.TestFeedbackRepository
+ import com.pgotta.stridulate.ui.theme.Amber
+ import com.pgotta.stridulate.ui.theme.Biolume
+@@ -45,6 +47,8 @@
+ import com.pgotta.stridulate.ui.theme.Parch
+ import com.pgotta.stridulate.ui.theme.ParchDim
+ 
++private const val QA_GOAL_PER_SPECIES = 3
++
+ @Composable
+ fun TestFeedbackPanel(
+     species: List<Species>,
+@@ -57,9 +61,20 @@
+     onClearLog: () -> Unit,
+     onMarkCurrentNoise: () -> Unit = {}
+ ) {
++    val context = LocalContext.current
+     var expanded by rememberSaveable { mutableStateOf(false) }
+     var showTargets by remember { mutableStateOf(false) }
++    var showProgress by remember { mutableStateOf(false) }
+     var confirmClear by remember { mutableStateOf(false) }
++    val progress = remember(feedbackCount) { TestFeedbackRepository(context).progressSnapshot() }
++    val speciesProgress = remember(species, progress) {
++        species.associateWith { sp ->
++            progress.byTarget[modelLabel(sp)] ?: QaSpeciesProgress(modelLabel(sp), 0, 0, 0, 0)
++        }
++    }
++    val startedCount = speciesProgress.values.count { it.total > 0 }
++    val goalCount = speciesProgress.values.count { it.total >= QA_GOAL_PER_SPECIES }
++    val untestedCount = species.size - startedCount
+     val targetName = when (targetKey) {
+         null -> "Not set"
+         TestFeedbackRepository.TARGET_NOISE -> "Noise / non-insect"
+@@ -96,13 +111,22 @@
+         if (expanded) {
+             Column(Modifier.padding(start = 10.dp, end = 10.dp, bottom = 10.dp)) {
+                 Text(
+-                    "Set the insect you are intentionally testing. Then tap Correct / Incorrect / Noise on a visible candidate. Every tap saves the raw Top 3, J.1 values, audio diagnostics and possible-match gate setting.",
++                    "Set the insect you are intentionally testing. Aim for $QA_GOAL_PER_SPECIES independent recordings per species; Stridulate keeps track for you.",
+                     fontFamily = Inter, fontSize = 10.5.sp, color = ParchDim, lineHeight = 14.sp
+                 )
++                Spacer(Modifier.height(5.dp))
++                Text(
++                    "$startedCount/${species.size} started · $goalCount at $QA_GOAL_PER_SPECIES+ · $untestedCount untested · ${progress.noiseTargetTests} noise tests",
++                    fontFamily = JetBrainsMono, fontSize = 8.5.sp, color = Mute
++                )
+                 Spacer(Modifier.height(7.dp))
+                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                     SmallAction("Target: $targetName", Amber, Modifier.weight(1f)) { showTargets = true }
+-                    SmallAction("Export", Biolume) { onExport() }
++                    SmallAction("Testing progress", Biolume, Modifier.weight(1f)) { showProgress = true }
++                }
++                Spacer(Modifier.height(6.dp))
++                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
++                    SmallAction("Export ALL QA ($feedbackCount)", Biolume, Modifier.weight(1f)) { onExport() }
+                     if (feedbackCount > 0) SmallAction("Clear", Danger) { confirmClear = true }
+                 }
+                 Spacer(Modifier.height(6.dp))
+@@ -123,10 +147,12 @@
+                 LazyColumn(Modifier.height(430.dp)) {
+                     item {
+                         TargetRow("Unspecified / exploratory") { onClearTarget(); showTargets = false }
+-                        TargetRow("Noise / non-insect (wind, child, HVAC, etc.)") { onSetNoiseTarget(); showTargets = false }
++                        TargetRow("Noise / non-insect (wind, fan, HVAC, voices, etc.)") { onSetNoiseTarget(); showTargets = false }
+                     }
+                     items(species.sortedBy { it.common.lowercase() }, key = { it.id }) { sp ->
+-                        TargetRow("${sp.common}  ·  ${sp.latin}") { onSetSpeciesTarget(sp); showTargets = false }
++                        val p = speciesProgress.getValue(sp)
++                        val suffix = if (p.total == 0) "UNTESTED" else "${p.total} tested · ✓${p.correct} · ✕${p.incorrect} · noise ${p.noise}"
++                        TargetRow("${sp.common}  ·  $suffix") { onSetSpeciesTarget(sp); showTargets = false }
+                     }
+                 }
+             },
+@@ -135,11 +161,26 @@
+         )
+     }
+ 
++    if (showProgress) {
++        QaProgressDialog(
++            species = species,
++            progressBySpecies = speciesProgress,
++            correct = progress.correct,
++            incorrect = progress.incorrect,
++            noise = progress.noise,
++            noiseTargetTests = progress.noiseTargetTests,
++            exploratoryTests = progress.exploratoryTests,
++            onPickSpecies = { sp -> onSetSpeciesTarget(sp); showProgress = false },
++            onPickNoise = { onSetNoiseTarget(); showProgress = false },
++            onDismiss = { showProgress = false }
++        )
++    }
++
+     if (confirmClear) {
+         AlertDialog(
+             onDismissRequest = { confirmClear = false },
+             title = { Text("Clear QA test log?") },
+-            text = { Text("Export it first if you want to keep the current Correct / Incorrect / Noise feedback.") },
++            text = { Text("Export it first if you want to keep the current Correct / Incorrect / Noise feedback and testing progress.") },
+             confirmButton = { TextButton(onClick = { onClearLog(); confirmClear = false }) { Text("Clear") } },
+             dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Cancel") } },
+             containerColor = Panel2
+@@ -148,6 +189,140 @@
+ }
+ 
+ @Composable
++private fun QaProgressDialog(
++    species: List<Species>,
++    progressBySpecies: Map<Species, QaSpeciesProgress>,
++    correct: Int,
++    incorrect: Int,
++    noise: Int,
++    noiseTargetTests: Int,
++    exploratoryTests: Int,
++    onPickSpecies: (Species) -> Unit,
++    onPickNoise: () -> Unit,
++    onDismiss: () -> Unit
++) {
++    var filter by rememberSaveable { mutableStateOf("needs") }
++    val started = progressBySpecies.values.count { it.total > 0 }
++    val complete = progressBySpecies.values.count { it.total >= QA_GOAL_PER_SPECIES }
++    val filtered = species
++        .filter { sp ->
++            val total = progressBySpecies.getValue(sp).total
++            when (filter) {
++                "untested" -> total == 0
++                "done" -> total >= QA_GOAL_PER_SPECIES
++                "all" -> true
++                else -> total < QA_GOAL_PER_SPECIES
++            }
++        }
++        .sortedWith(compareBy<Species> { progressBySpecies.getValue(it).total }.thenBy { it.common.lowercase() })
++    val nextNeeded = species
++        .filter { progressBySpecies.getValue(it).total < QA_GOAL_PER_SPECIES }
++        .minWithOrNull(compareBy<Species> { progressBySpecies.getValue(it).total }.thenBy { it.common.lowercase() })
++
++    AlertDialog(
++        onDismissRequest = onDismiss,
++        title = { Text("QA testing progress", color = Parch) },
++        text = {
++            Column {
++                Text(
++                    "Goal: $QA_GOAL_PER_SPECIES independent recordings per species. Tap any insect below to make it your next QA target.",
++                    fontFamily = Inter, fontSize = 10.5.sp, color = ParchDim, lineHeight = 14.sp
++                )
++                Spacer(Modifier.height(6.dp))
++                Text(
++                    "$started/${species.size} started · $complete/${species.size} at goal",
++                    fontFamily = JetBrainsMono, fontSize = 9.sp, color = Biolume
++                )
++                Text(
++                    "ALL VERDICTS  ✓ $correct   ✕ $incorrect   NOISE $noise",
++                    fontFamily = JetBrainsMono, fontSize = 8.5.sp, color = Mute
++                )
++                Text(
++                    "Noise-target tests: $noiseTargetTests · exploratory: $exploratoryTests",
++                    fontFamily = JetBrainsMono, fontSize = 8.5.sp, color = Mute
++                )
++                Spacer(Modifier.height(7.dp))
++                nextNeeded?.let { next ->
++                    SmallAction("Next needing test: ${next.common}", Biolume, Modifier.fillMaxWidth()) { onPickSpecies(next) }
++                    Spacer(Modifier.height(6.dp))
++                }
++                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
++                    FilterAction("Needs", filter == "needs", Modifier.weight(1f)) { filter = "needs" }
++                    FilterAction("Untested", filter == "untested", Modifier.weight(1f)) { filter = "untested" }
++                    FilterAction("3+ Done", filter == "done", Modifier.weight(1f)) { filter = "done" }
++                    FilterAction("All", filter == "all", Modifier.weight(1f)) { filter = "all" }
++                }
++                Spacer(Modifier.height(6.dp))
++                LazyColumn(Modifier.height(330.dp)) {
++                    item {
++                        QaProgressSpecialRow("Noise / non-insect", "$noiseTargetTests targeted noise test${if (noiseTargetTests == 1) "" else "s"}") { onPickNoise() }
++                    }
++                    items(filtered, key = { it.id }) { sp ->
++                        QaProgressRow(sp, progressBySpecies.getValue(sp)) { onPickSpecies(sp) }
++                    }
++                }
++            }
++        },
++        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
++        containerColor = Panel2
++    )
++}
++
++@Composable
++private fun QaProgressRow(species: Species, progress: QaSpeciesProgress, onClick: () -> Unit) {
++    val status = when {
++        progress.total == 0 -> "UNTESTED"
++        progress.total < QA_GOAL_PER_SPECIES -> "${progress.total}/$QA_GOAL_PER_SPECIES"
++        else -> "${progress.total} TESTED"
++    }
++    Column(
++        Modifier.fillMaxWidth().clickable(onClick = onClick)
++            .padding(vertical = 7.dp, horizontal = 4.dp)
++    ) {
++        Row(verticalAlignment = Alignment.CenterVertically) {
++            Text(species.common, modifier = Modifier.weight(1f), fontFamily = Inter, fontSize = 11.5.sp, color = Parch)
++            Text(status, fontFamily = JetBrainsMono, fontSize = 8.sp, color = if (progress.total >= QA_GOAL_PER_SPECIES) Biolume else Amber)
++        }
++        Text(species.latin, fontFamily = Inter, fontSize = 9.sp, color = Mute, maxLines = 1, overflow = TextOverflow.Ellipsis)
++        if (progress.total > 0) {
++            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
++                Text("✓ ${progress.correct}", fontFamily = JetBrainsMono, fontSize = 8.5.sp, color = Biolume)
++                Text("✕ ${progress.incorrect}", fontFamily = JetBrainsMono, fontSize = 8.5.sp, color = Danger)
++                Text("noise ${progress.noise}", fontFamily = JetBrainsMono, fontSize = 8.5.sp, color = Amber)
++            }
++        }
++    }
++}
++
++@Composable
++private fun QaProgressSpecialRow(title: String, subtitle: String, onClick: () -> Unit) {
++    Column(
++        Modifier.fillMaxWidth().clickable(onClick = onClick)
++            .background(Panel, RoundedCornerShape(7.dp))
++            .padding(horizontal = 7.dp, vertical = 7.dp)
++    ) {
++        Text(title, fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 11.sp, color = Amber)
++        Text(subtitle, fontFamily = JetBrainsMono, fontSize = 8.sp, color = Mute)
++    }
++    Spacer(Modifier.height(4.dp))
++}
++
++@Composable
++private fun FilterAction(label: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
++    Text(
++        label,
++        modifier = modifier.clickable(onClick = onClick)
++            .background(if (selected) Amber.copy(alpha = 0.16f) else Panel, RoundedCornerShape(6.dp))
++            .border(BorderStroke(1.dp, if (selected) Amber else Line), RoundedCornerShape(6.dp))
++            .padding(horizontal = 4.dp, vertical = 6.dp),
++        fontFamily = JetBrainsMono,
++        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
++        fontSize = 7.5.sp,
++        color = if (selected) Amber else ParchDim
++    )
++}
++
++@Composable
+ fun CandidateFeedbackButtons(onFeedback: (FeedbackVerdict) -> Unit) {
+     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+         SmallAction("✓ Correct", Biolume, Modifier.weight(1f)) { onFeedback(FeedbackVerdict.CORRECT) }
+@@ -162,7 +337,7 @@
+         text,
+         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 10.dp, horizontal = 4.dp),
+         fontFamily = Inter,
+-        fontSize = 12.sp,
++        fontSize = 11.5.sp,
+         color = Parch
+     )
+ }
+@@ -177,7 +352,7 @@
+             .padding(horizontal = 7.dp, vertical = 7.dp),
+         fontFamily = JetBrainsMono,
+         fontWeight = FontWeight.SemiBold,
+-        fontSize = 8.5.sp,
++        fontSize = 8.2.sp,
+         color = accent
+     )
+ }
+--- a/app/build.gradle.kts
++++ b/app/build.gradle.kts
+@@ -121,7 +121,7 @@
+         minSdk = 26
+         targetSdk = 34
+         // Stage-J Android consolidation: frozen J.1 + Perch 2.0, 88 species.
+-        versionCode = 17
++        versionCode = 18
+         versionName = "0.3"
+         vectorDrawables { useSupportLibrary = true }
+     }
+--- a/verification/verify_final_j_android.py
++++ b/verification/verify_final_j_android.py
+@@ -42,7 +42,7 @@
+ if (ASSETS/'labels.txt').read_bytes() != (ASSETS/'j1_labels.txt').read_bytes(): fail('labels.txt must mirror frozen J.1 order')
+ 
+ build=(ROOT/'app/build.gradle.kts').read_text()
+-for token in ['applicationId = "com.pgotta.stridulate"','versionCode = 17','versionName = "0.3"','onnxruntime-android:1.26.0','noCompress += "onnx"','prepareJ1Runtime','stridulate.bundleJ1Runtime','tphakala/Perch-v2']:
++for token in ['applicationId = "com.pgotta.stridulate"','versionCode = 18','versionName = "0.3"','onnxruntime-android:1.26.0','noCompress += "onnx"','prepareJ1Runtime','stridulate.bundleJ1Runtime','tphakala/Perch-v2']:
+     if token not in build: fail(f'build contract missing {token}')
+ 
+ classifier=(JAVA/'classifier/TfLiteClassifier.kt').read_text()
+--- a/verification/verify_qa_feedback.py
++++ b/verification/verify_qa_feedback.py
+@@ -28,6 +28,13 @@
+     (repo, '"gate_passed"'),
+     (repo, '"analysis_gain"'),
+     (repo, '"expected_target"'),
++    (repo, "data class QaProgressSnapshot"),
++    (repo, "fun progressSnapshot()"),
++    (controls, "Testing progress"),
++    (controls, "Export ALL QA"),
++    (controls, "Next needing test"),
++    (controls, "Untested"),
++    (controls, "3+ Done"),
+     (controls, "CandidateFeedbackButtons"),
+     (controls, "Correct"),
+     (controls, "Incorrect"),
