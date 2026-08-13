@@ -24,6 +24,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          printf '\n' >> verification/ci_qa_progress_dashboard.patch
           if git apply --check verification/ci_qa_progress_dashboard.patch; then
             git apply verification/ci_qa_progress_dashboard.patch
           elif git apply --reverse --check verification/ci_qa_progress_dashboard.patch; then
