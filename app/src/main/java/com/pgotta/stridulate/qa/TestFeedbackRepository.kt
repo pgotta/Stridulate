@@ -21,6 +21,25 @@ import org.json.JSONObject
 
 enum class FeedbackVerdict { CORRECT, INCORRECT, NOISE }
 
+
+data class QaSpeciesProgress(
+    val targetKey: String,
+    val total: Int,
+    val correct: Int,
+    val incorrect: Int,
+    val noise: Int
+)
+
+data class QaProgressSnapshot(
+    val totalFeedback: Int,
+    val correct: Int,
+    val incorrect: Int,
+    val noise: Int,
+    val noiseTargetTests: Int,
+    val exploratoryTests: Int,
+    val byTarget: Map<String, QaSpeciesProgress>
+)
+
 data class TestFeedbackSnapshot(
     val source: String,
     val sessionKey: String? = null,
@@ -117,6 +136,66 @@ class TestFeedbackRepository(private val context: Context) {
     fun clear() {
         if (eventFile.exists()) eventFile.delete()
         _count.value = 0
+    }
+
+    @Synchronized
+    fun progressSnapshot(): QaProgressSnapshot {
+        val lines = if (eventFile.exists()) eventFile.readLines().filter(String::isNotBlank) else emptyList()
+        var correct = 0
+        var incorrect = 0
+        var noise = 0
+        var noiseTargetTests = 0
+        var exploratoryTests = 0
+        val speciesCounters = linkedMapOf<String, IntArray>()
+
+        lines.forEach { line ->
+            val event = runCatching { JSONObject(line) }.getOrNull() ?: return@forEach
+            when (event.optString("verdict")) {
+                "correct" -> correct += 1
+                "incorrect" -> incorrect += 1
+                "noise" -> noise += 1
+            }
+
+            val target = event.optJSONObject("expected_target")
+            val type = target?.optString("type").orEmpty()
+            val label = target?.optString("label").orEmpty()
+            when (type) {
+                "species", "species_inferred_from_correct_tap" -> {
+                    if (label.isBlank()) {
+                        exploratoryTests += 1
+                    } else {
+                        val counts = speciesCounters.getOrPut(label) { IntArray(4) }
+                        counts[0] += 1
+                        when (event.optString("verdict")) {
+                            "correct" -> counts[1] += 1
+                            "incorrect" -> counts[2] += 1
+                            "noise" -> counts[3] += 1
+                        }
+                    }
+                }
+                "noise" -> noiseTargetTests += 1
+                else -> exploratoryTests += 1
+            }
+        }
+
+        val byTarget = speciesCounters.mapValues { (label, c) ->
+            QaSpeciesProgress(
+                targetKey = label,
+                total = c[0],
+                correct = c[1],
+                incorrect = c[2],
+                noise = c[3]
+            )
+        }
+        return QaProgressSnapshot(
+            totalFeedback = lines.size,
+            correct = correct,
+            incorrect = incorrect,
+            noise = noise,
+            noiseTargetTests = noiseTargetTests,
+            exploratoryTests = exploratoryTests,
+            byTarget = byTarget
+        )
     }
 
     @Synchronized
