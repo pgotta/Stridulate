@@ -87,6 +87,8 @@ fun ListenScreen(
     legacyCandidates: List<Candidate>,
     legacyComparisonAvailable: Boolean,
     signalAssessment: InsectSignalAssessment?,
+    heardNow: Boolean,
+    feedbackAck: String?,
     detections: List<Detection>,
     elapsedSeconds: Double,
     testSpecies: List<Species>,
@@ -118,7 +120,7 @@ fun ListenScreen(
     val visibleSpan = (spectrogramColumns.size * secondsPerColumn).coerceAtLeast(0.1)
     val visibleStart = (elapsedSeconds - visibleSpan).coerceAtLeast(0.0)
     val acceptedWindows = detections.sumOf { it.occurrences.size }
-    val heardNow = signalAssessment?.passed == true && (candidates.isNotEmpty() || legacyCandidates.isNotEmpty())
+    val hasPendingReview = candidates.isNotEmpty()
 
     // HEARD NOW markers are visual timeline markers, separate from accepted/logged
     // detections. Each fresh qualifying analysis drops a marker at the live edge.
@@ -276,27 +278,46 @@ fun ListenScreen(
         }
         Spacer(Modifier.height(4.dp))
 
-        if (!heardNow) {
+        if (!hasPendingReview) {
             Box(
                 Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(12.dp))
                     .background(Panel).border(BorderStroke(1.dp, Line), RoundedCornerShape(12.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    when {
-                        elapsedSeconds < 5.0 -> "Listening… first model comparison starts after ~5 seconds."
-                        signalAssessment?.passed == false -> signalAssessment.reason
-                        else -> "No stable possible match above the current gate."
-                    },
-                    fontFamily = Inter,
-                    fontSize = 12.sp,
-                    color = ParchDim,
-                    lineHeight = 17.sp,
-                    modifier = Modifier.padding(14.dp)
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    feedbackAck?.let { acknowledgement ->
+                        Text(
+                            acknowledgement,
+                            fontFamily = JetBrainsMono,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 11.sp,
+                            color = Biolume,
+                            modifier = Modifier.padding(bottom = 7.dp)
+                        )
+                    }
+                    Text(
+                        when {
+                            elapsedSeconds < 5.0 -> "Listening… first model comparison starts after ~5 seconds."
+                            signalAssessment?.passed == false -> signalAssessment.reason
+                            else -> "No unreviewed possible match above the current gate."
+                        },
+                        fontFamily = Inter,
+                        fontSize = 12.sp,
+                        color = ParchDim,
+                        lineHeight = 17.sp,
+                        modifier = Modifier.padding(horizontal = 14.dp)
+                    )
+                }
             }
         } else {
             Column(Modifier.weight(1f)) {
+                Text(
+                    if (heardNow) "CURRENT SOUND · awaiting your QA verdict" else "LAST HEARD · stays here until you judge it",
+                    fontFamily = JetBrainsMono,
+                    fontSize = 8.sp,
+                    color = if (heardNow) Amber else Biolume,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -322,7 +343,7 @@ fun ListenScreen(
                     Spacer(Modifier.height(5.dp))
                     CandidateFeedbackButtons { verdict -> onTestFeedback(topNew.label, verdict) }
                     Text(
-                        "QA buttons label the NEW top match; the OLD Top 3 from the same window is saved beside it for head-to-head analysis.",
+                        "This result stays here until you tap Correct / Incorrect / Noise. The OLD Top 3 from the same frozen window is saved beside it for head-to-head analysis.",
                         fontFamily = Inter,
                         fontSize = 8.5.sp,
                         color = Mute,
