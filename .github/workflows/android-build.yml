@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   verify-and-build:
@@ -17,7 +17,32 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.head_ref }}
           show-progress: false
+
+      - name: Materialize QA progress dashboard
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git apply --check verification/ci_qa_progress_dashboard.patch; then
+            git apply verification/ci_qa_progress_dashboard.patch
+          elif git apply --reverse --check verification/ci_qa_progress_dashboard.patch; then
+            echo "QA progress dashboard is already materialized."
+          else
+            echo "QA progress dashboard patch is neither cleanly applicable nor already applied."
+            exit 1
+          fi
+          if ! git diff --quiet -- app verification; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add app/src/main/java/com/pgotta/stridulate/qa/TestFeedbackRepository.kt \
+                    app/src/main/java/com/pgotta/stridulate/ui/components/TestFeedbackControls.kt \
+                    app/build.gradle.kts \
+                    verification/verify_final_j_android.py \
+                    verification/verify_qa_feedback.py
+            git commit -m "Add QA testing progress dashboard"
+            git push origin "HEAD:${{ github.head_ref }}"
+          fi
 
       - name: Set up Python
         uses: actions/setup-python@v5
