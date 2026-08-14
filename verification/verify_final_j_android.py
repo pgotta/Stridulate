@@ -42,7 +42,7 @@ if len(labels)!=88 or len(set(labels))!=88: fail('J.1 label list must contain ex
 if (ASSETS/'labels.txt').read_bytes() != (ASSETS/'j1_labels.txt').read_bytes(): fail('labels.txt must mirror frozen J.1 order')
 
 build=(ROOT/'app/build.gradle.kts').read_text()
-for token in ['applicationId = "com.pgotta.stridulate"','versionCode = 18','versionName = "0.3"','onnxruntime-android:1.26.0','noCompress += "onnx"','prepareJ1Runtime','stridulate.bundleJ1Runtime','tphakala/Perch-v2']:
+for token in ['applicationId = "com.pgotta.stridulate"','versionCode = 19','versionName = "0.3"','onnxruntime-android:1.26.0','noCompress += "onnx"','prepareJ1Runtime','stridulate.bundleJ1Runtime','tphakala/Perch-v2']:
     if token not in build: fail(f'build contract missing {token}')
 
 classifier=(JAVA/'classifier/TfLiteClassifier.kt').read_text()

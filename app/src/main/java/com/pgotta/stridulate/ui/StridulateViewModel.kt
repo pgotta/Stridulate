@@ -39,7 +39,9 @@ import com.pgotta.stridulate.data.SpeciesReliabilityRepository
 import com.pgotta.stridulate.data.SpeciesRepository
 import com.pgotta.stridulate.environment.ContextAssessment
 import com.pgotta.stridulate.environment.ContextProfileRepository
+import com.pgotta.stridulate.environment.ContextRegion
 import com.pgotta.stridulate.environment.ContextReranker
+import com.pgotta.stridulate.environment.ContextStatus
 import com.pgotta.stridulate.environment.EnvironmentRepository
 import com.pgotta.stridulate.environment.ObservationContext
 import com.pgotta.stridulate.environment.SpeciesContextProfile
@@ -183,7 +185,7 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
     fun contextProfileFor(species: Species): SpeciesContextProfile? =
         contextProfiles.forLabel(modelLabel(species))
 
-    fun supportsRegion(species: Species, region: com.pgotta.stridulate.environment.ContextRegion): Boolean =
+    fun supportsRegion(species: Species, region: ContextRegion): Boolean =
         contextProfiles.supportsRegion(modelLabel(species), region)
 
     private val unavailableClassifier = object : InsectClassifier {
@@ -443,13 +445,77 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
         testFeedbackRepository.record(FeedbackVerdict.NOISE, null, snapshot)
     }
 
+    /**
+     * Field-mode context is deliberately stronger than the soft finished-result reranker.
+     * When location data is ON, a live candidate must be biologically plausible for the
+     * current broad region, season, and day/night period. Raw J.1 Top 3 is still retained
+     * in the QA snapshot so playback/model research never loses the underlying audio result.
+     */
+    private fun liveContextRankedCandidates(
+        candidates: List<Candidate>,
+        contextSnapshot: ObservationContext
+    ): List<Candidate> {
+        val supported = candidates.filter { it.species != null }
+        if (!contextSnapshot.enabled ||
+            contextSnapshot.status !in setOf(ContextStatus.READY, ContextStatus.STALE)
+        ) {
+            return supported.sortedByDescending { it.audioConfidence }
+        }
+
+        return contextReranker.rerank(supported, contextSnapshot).candidates
+            .filter { liveContextExclusionReason(it, contextSnapshot) == null }
+            .sortedByDescending { it.contextScore }
+    }
+
+    private fun liveContextExclusionReason(
+        candidate: Candidate,
+        contextSnapshot: ObservationContext
+    ): String? {
+        if (!contextSnapshot.enabled ||
+            contextSnapshot.status !in setOf(ContextStatus.READY, ContextStatus.STALE)
+        ) return null
+
+        val species = candidate.species ?: return "unsupported model label"
+
+        // Region is a hard live constraint only when Stridulate has explicit range support.
+        // Missing/broad profiles remain neutral rather than inventing a range boundary.
+        val profile = contextProfiles.forLabel(candidate.label)
+        if (profile != null && contextSnapshot.region != ContextRegion.UNKNOWN) {
+            val regionSupported = "NATIONWIDE" in profile.regions ||
+                profile.regions.any(contextSnapshot.region.profileTags::contains)
+            if (!regionSupported) return "outside supported broad region"
+        } else if (contextSnapshot.region != ContextRegion.UNKNOWN) {
+            val range = species.range.lowercase()
+            val rangeSupported = when {
+                "western" in range -> contextSnapshot.region in setOf(ContextRegion.PACIFIC, ContextRegion.MOUNTAIN_WEST)
+                "eastern" in range -> contextSnapshot.region in setOf(ContextRegion.NORTHEAST, ContextRegion.SOUTHEAST, ContextRegion.MIDWEST)
+                else -> true
+            }
+            if (!rangeSupported) return "outside stated broad range"
+        }
+
+        // Allow adjacent months to avoid false exclusions at the shoulder of a calling season.
+        val active = species.months.getOrElse(contextSnapshot.monthIndex) { 0 } == 1
+        val previous = species.months.getOrElse((contextSnapshot.monthIndex + 11) % 12) { 0 } == 1
+        val next = species.months.getOrElse((contextSnapshot.monthIndex + 1) % 12) { 0 } == 1
+        if (!active && !previous && !next) return "outside typical active season"
+
+        // The bundled nocturnal flag describes normal calling behavior. In location-aware live
+        // mode it is a plausibility constraint; users can disable context for audio-only playback.
+        val night = contextSnapshot.dayPeriodLabel == "Night"
+        if (species.nocturnal && !night) return "normally night-active"
+        if (!species.nocturnal && night) return "normally day-active"
+
+        return null
+    }
+
     private fun updateLiveHeardState(
         freshCandidates: List<Candidate>,
         freshLegacyCandidates: List<Candidate>,
         assessment: InsectSignalAssessment
     ) {
-        _liveHeardNow.value = assessment.passed &&
-            (freshCandidates.isNotEmpty() || freshLegacyCandidates.isNotEmpty())
+        // OLD is a diagnostic comparator only and must never make production HEARD NOW true.
+        _liveHeardNow.value = assessment.passed && freshCandidates.isNotEmpty()
 
         val freshTopLabel = freshCandidates.firstOrNull()?.label
         if (!assessment.passed) {
@@ -483,7 +549,6 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
     fun setLivePossibleMatchSensitivity(value: Float) {
         PossibleMatchGate.set(getApplication<Application>(), value.coerceIn(0f, 1f))
         val result = lastLiveAnalysisResult ?: return
-        val rawTopThree = lastLiveRawTopThree
         val rawPcm = lastLiveRawPcm
         val sampleRate = lastLiveRawSampleRate
         if (rawPcm.isEmpty() || sampleRate <= 0) return
@@ -500,7 +565,8 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
             // A fresh rolling window wins over a stale slider refresh.
             if (lastLiveRawPcm !== rawPcm || lastLiveAnalysisResult !== result) return@launch
             _liveSignalAssessment.value = assessment
-            val freshCandidates = filterLiveCandidates(rawTopThree, result, assessment)
+            val contextTopThree = liveContextRankedCandidates(result.candidates, environment.value).take(3)
+            val freshCandidates = filterLiveCandidates(contextTopThree, result, assessment)
             val freshLegacyCandidates = if (assessment.passed) lastLiveRawLegacyTopThree else emptyList()
             updateLiveHeardState(freshCandidates, freshLegacyCandidates, assessment)
 
@@ -596,22 +662,23 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
         lastLiveRawSampleRate = pcmSr
         _liveSignalAssessment.value = result.signalAssessment
 
-        // Discovery view: preserve useful below-J.1 candidates, but do not force arbitrary
-        // species onto silence/noise. The user-controlled PossibleMatchGate is deliberately
-        // separate from frozen J.1 acceptance: it only controls what the live Top 3 displays.
-        val rawTopThree = result.candidates
+        // QA keeps the untouched audio Top 3. The normal live display/log path below applies
+        // region + season + day/night plausibility whenever observation context is enabled.
+        val rawSupportedCandidates = result.candidates
             .asSequence()
             .filter { it.species != null }
             .sortedByDescending { it.audioConfidence }
-            .take(3)
             .toList()
+        val rawTopThree = rawSupportedCandidates.take(3)
         lastLiveRawTopThree = rawTopThree
+        val contextTopThree = liveContextRankedCandidates(rawSupportedCandidates, environment.value).take(3)
+
         val rawLegacyTopThree = result.legacyCandidates
             .sortedByDescending { it.audioConfidence }
             .take(3)
         lastLiveRawLegacyTopThree = rawLegacyTopThree
-        val rawLabels = rawTopThree.map { it.label }.toSet()
-        rawTopThree.forEach { candidate ->
+        val liveLabels = contextTopThree.map { it.label }.toSet()
+        contextTopThree.forEach { candidate ->
             liveCandidateStreaks[candidate.label] =
                 if (candidate.label in previousRawLiveLabels) {
                     (liveCandidateStreaks[candidate.label] ?: 0) + 1
@@ -619,10 +686,10 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
                     1
                 }
         }
-        liveCandidateStreaks.keys.retainAll(rawLabels)
-        previousRawLiveLabels = rawLabels
+        liveCandidateStreaks.keys.retainAll(liveLabels)
+        previousRawLiveLabels = liveLabels
 
-        val freshCandidates = filterLiveCandidates(rawTopThree, result, result.signalAssessment)
+        val freshCandidates = filterLiveCandidates(contextTopThree, result, result.signalAssessment)
         val freshLegacyCandidates = if (result.signalAssessment.passed) rawLegacyTopThree else emptyList()
         updateLiveHeardState(freshCandidates, freshLegacyCandidates, result.signalAssessment)
 
@@ -642,12 +709,13 @@ class StridulateViewModel(app: Application) : AndroidViewModel(app) {
         lastLiveFeedbackSnapshot = feedbackSnapshot
         latchLiveReviewIfAvailable(freshCandidates, freshLegacyCandidates, feedbackSnapshot)
 
-        // Decision/logging view: the raw-audio signal gate is mandatory. J.1 can still be
-        // calculated and exported for QA on rejected noise windows, but no accepted/logged call
-        // may originate from silence/noise that failed the class-agnostic front gate.
+        // Decision/logging view: the raw-audio signal gate is mandatory. With location context
+        // enabled, region/season/day-night plausibility is mandatory too. The raw J.1 ranking is
+        // still exported in QA, but an implausible species cannot become a normal live log entry.
         if (!result.signalAssessment.passed) return
-        val top = result.candidates.firstOrNull() ?: return
-        val runnerUp = result.candidates.getOrNull(1)
+        val decisionCandidates = liveContextRankedCandidates(result.candidates, environment.value)
+        val top = decisionCandidates.firstOrNull() ?: return
+        val runnerUp = decisionCandidates.getOrNull(1)
         val policy = classifier.policy ?: return
         val gate = OpenSetDecision.evaluate(
             top = top,
